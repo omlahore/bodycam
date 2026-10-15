@@ -373,3 +373,18 @@ func agentName(agents map[string]bool, exe string, args []string, script string)
 	}
 	return ""
 }
+
+var secretValues = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?|AUTH)[A-Z0-9_]*=)(?:'[^']*'|"[^"]*"|\S+)`),
+	regexp.MustCompile(`(?i)(\b(?:Bearer|Basic|token)\s+)[A-Za-z0-9._~+/=-]{8,}`),
+	regexp.MustCompile(`(?i)((?:^|\s)--?(?:password|token|api-key|apikey|secret)[= ])(?:'[^']*'|"[^"]*"|\S+)`),
+	regexp.MustCompile(`()\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{30,})`),
+}
+
+// redact hides values that look like keys or tokens, so a report can be shared.
+func redact(cmd string) string {
+	for _, re := range secretValues {
+		cmd = re.ReplaceAllString(cmd, "${1}•••")
+	}
+	return cmd
+}

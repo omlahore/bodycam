@@ -144,3 +144,20 @@ func TestParseLsof(t *testing.T) {
 		t.Errorf("parseLsof = %+v, want %+v", got, want)
 	}
 }
+
+func TestRedact(t *testing.T) {
+	cases := map[string]string{
+		"env OPENAI_API_KEY=sk-abc123def456ghi789 node app.js":               "env OPENAI_API_KEY=••• node app.js",
+		"curl -H 'Authorization: Bearer abcdef123456' https://x.io":          "curl -H 'Authorization: Bearer •••' https://x.io",
+		"mysql --password=hunter22 -u root":                                  "mysql --password=••• -u root",
+		"git push https://ghp_abcdefghijklmnopqrstuvwxyz0123@github.com/x/y": "git push https://•••@github.com/x/y",
+		"aws configure set aws_secret_access_key 'x'":                        "aws configure set aws_secret_access_key 'x'",
+		"git status":                 "git status",
+		"export TOKEN=\"two words\"": "export TOKEN=•••",
+	}
+	for in, want := range cases {
+		if got := redact(in); got != want {
+			t.Errorf("redact(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

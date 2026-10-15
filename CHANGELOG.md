@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Values in command lines that look like keys or tokens, such as `API_KEY=...`, `Bearer ...` or `--password=...`, are masked in the live feed and the reports.
+- `bodycam --version` shows the right version when installed with `go install`.
+
 ## 0.1.0
 
 - First release. `sudo bodycam` records every AI coding agent you start: the commands it runs, the files it reads and changes, the background items it registers and the addresses it connects to. When the agent exits you get a summary in the terminal and a full report in `~/Library/Logs/bodycam`.

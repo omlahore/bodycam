@@ -65,7 +65,7 @@ Changes outside the project folder show up in the live feed and in the report, b
 
 ## The report
 
-Every agent run gets a Markdown report with the commands, the changed and deleted files, the files read outside the project, the credentials used and the network connections. Here's part of the one from the run above:
+Every agent run gets a Markdown report with the commands, the changed and deleted files, the files read outside the project, the credentials used and the network connections. Values that look like keys or tokens in command lines are masked, so you can share a report without leaking them. Here's part of the one from the run above:
 
 ```markdown
 # bodycam: claude, 16 Oct 2026 01:48

@@ -385,7 +385,7 @@ func (r *recorder) onExec(p *proc, e execEvent, t time.Time) {
 	}
 	if script, ok := shellScript(args); ok {
 		for _, label := range r.commandFlags(script, spawner) {
-			r.flag(s, t, label, oneLine(s.homeToTilde(script), 160), p.name)
+			r.flag(s, t, label, oneLine(s.homeToTilde(redact(script)), 160), p.name)
 		}
 		for _, h := range commandHosts(script) {
 			if _, ok := s.hosts[h]; !ok {
@@ -394,7 +394,7 @@ func (r *recorder) onExec(p *proc, e execEvent, t time.Time) {
 		}
 		return
 	}
-	line := s.homeToTilde(commandLine(args))
+	line := s.homeToTilde(redact(commandLine(args)))
 	c := s.cmdKey[line]
 	if c == nil {
 		c = &command{line: line}
