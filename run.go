@@ -13,7 +13,7 @@ import (
 )
 
 // runCommand records one command, started by bodycam itself, and returns its exit code.
-func runCommand(r *recorder, args []string, quiet bool) int {
+func runCommand(r *recorder, args []string, name string, quiet bool) int {
 	if os.Geteuid() == 0 {
 		fail(fmt.Errorf("run it without sudo, as bodycam %s. bodycam asks for your password itself, so %s runs as you and not as root", args[0], args[0]))
 	}
@@ -26,7 +26,7 @@ func runCommand(r *recorder, args []string, quiet bool) int {
 		fail(err)
 	}
 
-	fmt.Fprintf(os.Stderr, "bodycam needs your Mac password to start Apple's eslogger. %s itself runs as you.\n", filepath.Base(args[0]))
+	fmt.Fprintf(os.Stderr, "bodycam needs your Mac password to start Apple's eslogger. %s itself runs as you.\n", name)
 	auth := exec.Command("sudo", "-v", "-p", "Password: ")
 	auth.Stdin, auth.Stdout, auth.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if auth.Run() != nil {
@@ -81,7 +81,7 @@ func runCommand(r *recorder, args []string, quiet bool) int {
 	}
 
 	r.mu.Lock()
-	r.wrapPPID, r.wrapName = os.Getpid(), filepath.Base(args[0])
+	r.wrapPPID, r.wrapName = os.Getpid(), name
 	r.mu.Unlock()
 
 	cmd := exec.Command(path, args[1:]...)

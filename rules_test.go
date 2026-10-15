@@ -59,7 +59,7 @@ func TestCommandFlags(t *testing.T) {
 		"sudo rm -rf /":                            {"used sudo", "tried to delete your whole disk or home folder"},
 		"security find-generic-password -s github": {"read from your keychain"},
 		"launchctl load ~/Library/LaunchAgents/x":  {"registered a background job"},
-		"git push --force origin main":             {"force-pushed"},
+		"git push --force origin main":             {"ran git push --force"},
 		"git push origin main":                     nil,
 		"npm publish":                              {"published something"},
 		"xattr -d com.apple.quarantine app":        {"removed a download quarantine flag"},

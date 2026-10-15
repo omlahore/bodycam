@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
 	"os/user"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -15,6 +17,9 @@ import (
 )
 
 var version = "dev"
+
+//go:embed examples/sketchy-agent.sh
+var demoScript string
 
 var wantedEvents = []string{
 	"fork", "exec", "exit", "open", "close", "create", "rename", "unlink",
@@ -32,6 +37,7 @@ the files they change, the secrets they read and the addresses they connect to.
 
 Usage:
   bodycam claude                  run claude, or any other command, and record what it does
+  bodycam --demo                  watch bodycam catch a harmless pretend agent
   sudo bodycam                    record every agent started anywhere, and report when each exits
   sudo bodycam --pid 4242         also record an agent that was already running
   bodycam --replay events.jsonl   make reports from a log saved with --save
@@ -50,6 +56,7 @@ func main() {
 		save    = flag.String("save", "", "also save the agents' raw events to `file` (it can get big)")
 		quiet   = flag.Bool("quiet", false, "skip the live feed and only print each agent's summary")
 		showVer = flag.Bool("version", false, "print the version")
+		demo    = flag.Bool("demo", false, "record a harmless pretend agent that does risky-looking things")
 		extra   names
 	)
 	flag.Var(&extra, "agent", "also watch for processes with this `name` (can repeat)")
@@ -93,9 +100,13 @@ func main() {
 		return
 	}
 
+	if *demo {
+		r.live = true
+		os.Exit(runCommand(r, []string{"/bin/sh", "-c", demoScript, "sketchy-agent"}, "sketchy-agent", true))
+	}
 	if flag.NArg() > 0 {
 		r.live = true
-		os.Exit(runCommand(r, flag.Args(), *quiet))
+		os.Exit(runCommand(r, flag.Args(), filepath.Base(flag.Arg(0)), *quiet))
 	}
 
 	if os.Geteuid() != 0 {
