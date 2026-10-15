@@ -28,6 +28,9 @@ func useColor(w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		return false
 	}
+	if os.Getenv("CLICOLOR_FORCE") != "" {
+		return true
+	}
 	f, ok := w.(*os.File)
 	if !ok {
 		return false
@@ -49,13 +52,14 @@ var verbColor = map[string]string{
 }
 
 func (r *recorder) print(fl *feedLine) {
-	who := fl.who
+	tag := ""
 	if len(r.sessions) > 1 {
-		who = fmt.Sprintf("%s/%d", fl.s.agent, fl.s.root)
+		tag = r.paint(dim, fmt.Sprintf("#%d ", fl.s.n))
 	}
-	line := fmt.Sprintf("%s  %-8s %s  %s",
+	line := fmt.Sprintf("%s  %s%s %s  %s",
 		r.paint(dim, fl.t.Local().Format("15:04:05")),
-		r.paint(cyan, oneLine(who, 8)),
+		tag,
+		r.paint(cyan, fmt.Sprintf("%-8s", oneLine(fl.who, 8))),
 		r.paint(verbColor[fl.verb], fmt.Sprintf("%-6s", fl.verb)),
 		fl.what)
 	if fl.note != "" {
@@ -84,8 +88,8 @@ func (f *finding) format(what string) string {
 			extra = append(extra, "×"+strconv.Itoa(f.count))
 		}
 	}
-	if f.who != "" {
-		extra = append(extra, "by "+f.who)
+	if len(f.who) > 0 {
+		extra = append(extra, "by "+strings.Join(f.who, ", "))
 	}
 	if len(extra) > 0 {
 		s += " (" + strings.Join(extra, ", ") + ")"
@@ -96,7 +100,11 @@ func (f *finding) format(what string) string {
 func (r *recorder) printSummary(s *session, report string) {
 	w := r.out
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "%s finished after %s\n", r.paint(bold, s.agent), duration(s))
+	name := s.agent
+	if r.count > 1 {
+		name = fmt.Sprintf("#%d %s", s.n, s.agent)
+	}
+	fmt.Fprintf(w, "%s (pid %d) ran for %s\n", r.paint(bold, name), s.root, duration(s))
 	if len(s.findings) == 0 {
 		fmt.Fprintln(w, "  "+r.paint(green, "nothing stood out"))
 	} else {
@@ -113,9 +121,14 @@ func (r *recorder) printSummary(s *session, report string) {
 	for _, c := range s.commands {
 		runs += c.count
 	}
-	fmt.Fprintf(w, "  %s, %s changed in the project, %d outside it, %d deleted\n",
-		plural(runs, "command"), plural(len(s.changed), "file"), len(s.changedOut), len(s.deleted))
-	fmt.Fprintf(w, "  %s read in the project, %d outside it", plural(s.readIn, "file"), len(s.readOut))
+	if s.wholeHome() {
+		fmt.Fprintf(w, "  %s, %s changed, %d deleted\n", plural(runs, "command"), plural(len(s.changed)+len(s.changedOut), "file"), len(s.deleted))
+		fmt.Fprintf(w, "  %s read", plural(s.readIn+len(s.readOut), "file"))
+	} else {
+		fmt.Fprintf(w, "  %s, %s changed in the project, %d outside it, %d deleted\n",
+			plural(runs, "command"), plural(len(s.changed), "file"), len(s.changedOut), len(s.deleted))
+		fmt.Fprintf(w, "  %s read in the project, %d outside it", plural(s.readIn, "file"), len(s.readOut))
+	}
 	if len(s.conns) > 0 {
 		fmt.Fprintf(w, ", %s", plural(len(s.conns), "network address"))
 	}
@@ -246,8 +259,15 @@ func (r *recorder) markdown(s *session) string {
 	if len(s.readOut) == 0 {
 		b.WriteString(", none outside it worth listing.\n")
 	} else {
-		fmt.Fprintf(&b, ", and these %d outside it:\n\n", len(s.readOut))
+		fmt.Fprintf(&b, ", plus these %d outside it:\n\n", len(s.readOut))
 		listPaths(&b, s, sortedKeys(s.readOut), nil, 300)
+	}
+
+	if len(s.creds) > 0 {
+		b.WriteString("\n## Credentials read by the tools they belong to\n\n")
+		for _, label := range sortedKeys(s.creds) {
+			fmt.Fprintf(&b, "- %s, by %s\n", label, strings.Join(s.creds[label], ", "))
+		}
 	}
 
 	if len(s.conns) > 0 || len(s.hosts) > 0 {

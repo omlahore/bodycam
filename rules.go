@@ -42,7 +42,7 @@ var ownDirs = []string{
 	".nvm", ".pyenv", ".rustup", ".cargo/registry", ".cargo/git", ".gradle", ".m2", ".yarn",
 	".pnpm-store", ".node-gyp", ".config/configstore", "go/pkg", "Library/Caches", "Library/Logs",
 	"Library/pnpm", "Library/Saved Application State", "Library/Application Support/Claude",
-	".zsh_sessions", ".lesshst", ".viminfo", ".node_repl_history", ".python_history",
+	".zsh_sessions", ".zcompdump", ".lesshst", ".viminfo", ".node_repl_history", ".python_history",
 }
 
 func isOwnDir(p, home string) bool {
@@ -51,7 +51,7 @@ func isOwnDir(p, home string) bool {
 		return false
 	}
 	for _, d := range ownDirs {
-		if rel == d || strings.HasPrefix(rel, d+"/") {
+		if rel == d || strings.HasPrefix(rel, d+"/") || strings.HasPrefix(rel, d+".") {
 			return true
 		}
 	}
@@ -106,6 +106,75 @@ var secretPaths = []struct {
 	{"Library/Mail/", "your Mail"},
 	{"Library/Group Containers/2BUA8C4S2C.com.1password/", "1Password data"},
 	{"Library/Application Support/Bitwarden/", "Bitwarden data"},
+}
+
+// Programs that normally read a kind of secret. Reads by them are listed, not flagged.
+var secretOwners = map[string][]string{
+	"your npm token file":       {"node", "npm", "npx", "pnpm", "yarn", "bun", "corepack"},
+	"your GitHub CLI token":     {"gh"},
+	"AWS credentials":           {"aws", "terraform", "pulumi"},
+	"AWS login tokens":          {"aws"},
+	"Kubernetes credentials":    {"kubectl", "helm", "k9s", "kind", "minikube", "kubectx", "kubens"},
+	"Docker credentials":        {"docker", "docker-credential-desktop", "docker-credential-osxkeychain", "com.docker.backend"},
+	"saved git passwords":       {"git", "git-credential-store", "git-remote-https"},
+	"saved passwords in .netrc": {"git-remote-https", "curl"},
+	"an SSH private key":        {"ssh", "ssh-add", "ssh-keygen", "scp", "sftp", "ssh-agent"},
+	"your GPG keys":             {"gpg", "gpg2", "gpg-agent", "keyboxd"},
+	"your keychain":             {"security", "securityd", "secd"},
+	"your crates.io token":      {"cargo"},
+	"your Terraform token":      {"terraform"},
+	"your Vault token":          {"vault"},
+	"your PyPI token file":      {"twine"},
+	"your RubyGems token":       {"gem"},
+	"1Password CLI data":        {"op"},
+	"Google Cloud credentials":  {"gcloud", "gsutil", "bq"},
+	"Azure credentials":         {"az"},
+}
+
+// Programs that copy or print raw files. Any other program that opens the keychain file is
+// going through Apple's keychain API, which asks before it hands anything over.
+var rawFileTools = map[string]bool{
+	"cat": true, "cp": true, "mv": true, "ditto": true, "tar": true, "zip": true, "gzip": true,
+	"rsync": true, "scp": true, "sftp": true, "curl": true, "nc": true, "base64": true, "xxd": true,
+	"od": true, "hexdump": true, "strings": true, "sqlite3": true, "dd": true, "head": true,
+	"tail": true, "less": true, "more": true, "bat": true,
+}
+
+func ownsSecret(label, program string) bool {
+	if label == "your keychain" {
+		return !rawFileTools[program]
+	}
+	for _, o := range secretOwners[label] {
+		if o == program {
+			return true
+		}
+	}
+	return false
+}
+
+var keychainUsers = map[string]bool{
+	"gh": true, "git": true, "git-credential-osxkeychain": true, "docker-credential-osxkeychain": true,
+	"docker-credential-desktop": true, "op": true, "aws-vault": true,
+}
+
+var keychainService = regexp.MustCompile(`\s-s\s+(?:'([^']*)'|"([^"]*)"|(\S+))`)
+
+// ownKeychainItem is true when the agent itself, or a tool like gh, reads its own login from the keychain.
+func ownKeychainItem(cmd, spawner string, agents map[string]bool) bool {
+	if keychainUsers[spawner] {
+		return true
+	}
+	m := keychainService.FindStringSubmatch(cmd)
+	if m == nil {
+		return false
+	}
+	service := strings.ToLower(m[1] + m[2] + m[3])
+	for a := range agents {
+		if strings.Contains(service, a) {
+			return true
+		}
+	}
+	return false
 }
 
 var envTemplates = map[string]bool{

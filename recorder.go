@@ -25,7 +25,7 @@ type proc struct {
 type finding struct {
 	label string
 	what  string
-	who   string
+	who   []string
 	count int
 }
 
@@ -35,6 +35,7 @@ type command struct {
 }
 
 type session struct {
+	n       int
 	agent   string
 	root    int
 	cwd     string
@@ -44,6 +45,7 @@ type session struct {
 	end     time.Time
 	late    bool
 	unnamed bool
+	started *feedLine
 	dropped int
 	note    string
 	running map[int]string
@@ -66,6 +68,7 @@ type session struct {
 	readOut    map[string]string
 	conns      map[string]map[string]bool
 	hosts      map[string]string
+	creds      map[string][]string
 	shown      map[string]int
 	hidden     map[string]int
 }
@@ -105,6 +108,7 @@ type recorder struct {
 	homes     map[int]string
 	reports   []string
 	wantPID   int
+	count     int
 }
 
 func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder {
@@ -271,10 +275,12 @@ func (r *recorder) newSession(agent string, root int, cwd, home string, t time.T
 		findKey: map[string]*finding{}, cmdKey: map[string]*command{},
 		changed: map[string]string{}, newFiles: map[string]bool{}, changedOut: map[string]string{},
 		deleted: map[string]string{}, generated: map[string]int{}, genSeen: map[string]bool{}, readOut: map[string]string{},
-		conns: map[string]map[string]bool{}, hosts: map[string]string{},
+		conns: map[string]map[string]bool{}, hosts: map[string]string{}, creds: map[string][]string{},
 		shown: map[string]int{}, hidden: map[string]int{},
 	}
 	s.setProject(cwd)
+	r.count++
+	s.n = r.count
 	r.sessions = append(r.sessions, s)
 	what := fmt.Sprintf("pid %d", root)
 	if s.project != "" {
@@ -283,7 +289,7 @@ func (r *recorder) newSession(agent string, root int, cwd, home string, t time.T
 	if late {
 		what += ", already running"
 	}
-	r.emit(&feedLine{t: t, s: s, who: agent, verb: "start", what: what})
+	s.started = &feedLine{t: t, s: s, who: agent, verb: "start", what: what}
 	return s
 }
 
@@ -305,6 +311,16 @@ func projectRoot(cwd, home string) string {
 		}
 	}
 	return cwd
+}
+
+// empty is true for agent runs that did nothing worth a report, like `claude --version`.
+func (s *session) empty() bool {
+	return len(s.commands) == 0 && len(s.changed) == 0 && len(s.changedOut) == 0 && len(s.deleted) == 0 &&
+		len(s.findings) == 0 && len(s.conns) == 0 && len(s.generated) == 0 && s.dropped == 0
+}
+
+func (s *session) wholeHome() bool {
+	return s.project == "" || s.project == s.home || s.project == "/"
 }
 
 func (s *session) inProject(p string) bool {
@@ -343,13 +359,14 @@ func (r *recorder) onExec(p *proc, e execEvent, t time.Time) {
 		return
 	}
 	p.args = tail
+	spawner := p.name
 	p.name = filepath.Base(args[0])
 	s.running[p.pid] = p.name
 	if p.pid == s.root && s.unnamed {
 		s.agent, s.unnamed = p.name, false
 	}
 	if script, ok := shellScript(args); ok {
-		for _, label := range commandFlags(script) {
+		for _, label := range r.commandFlags(script, spawner) {
 			r.flag(s, t, label, oneLine(s.homeToTilde(script), 160), p.name)
 		}
 		for _, h := range commandHosts(script) {
@@ -370,13 +387,24 @@ func (r *recorder) onExec(p *proc, e execEvent, t time.Time) {
 	for _, h := range commandHosts(line) {
 		s.hosts[h] = p.name
 	}
-	flags := commandFlags(line)
+	flags := r.commandFlags(line, spawner)
 	if c.count == 1 {
 		r.emit(&feedLine{t: t, s: s, who: p.name, verb: "run", what: oneLine(line, 120), note: strings.Join(flags, ", ")})
 	}
 	for _, label := range flags {
 		r.recordFinding(s, label, oneLine(line, 160), p.name)
 	}
+}
+
+func (r *recorder) commandFlags(cmd, spawner string) []string {
+	var out []string
+	for _, label := range commandFlags(cmd) {
+		if label == "read from your keychain" && ownKeychainItem(cmd, spawner, r.agents) {
+			continue
+		}
+		out = append(out, label)
+	}
+	return out
 }
 
 func commandLine(args []string) string {
@@ -446,8 +474,11 @@ func (r *recorder) onFile(p *proc, kind string, body json.RawMessage, t time.Tim
 func (r *recorder) onRead(p *proc, path string, t time.Time) {
 	s := p.s
 	if label := secretLabel(path, s.home); label != "" {
-		key := "read " + label + "\x00" + path
-		if s.findKey[key] == nil {
+		if ownsSecret(label, p.name) {
+			s.addCred(label, p.name)
+			return
+		}
+		if s.findKey["read "+label+"\x00"+s.show(path)] == nil {
 			r.emit(&feedLine{t: t, s: s, who: p.name, verb: "read", what: s.show(path), note: label})
 		}
 		r.recordFinding(s, "read "+label, s.show(path), p.name)
@@ -474,7 +505,14 @@ func (r *recorder) onChange(p *proc, path string, t time.Time) {
 	if s.newFiles[path] {
 		verb = "new"
 	}
-	if label := changeLabel(path, s.home); label != "" {
+	label := changeLabel(path, s.home)
+	if secret := secretLabel(path, s.home); secret != "" && ownsSecret(secret, p.name) {
+		if secret == "your keychain" {
+			return
+		}
+		label = ""
+	}
+	if label != "" {
 		if s.inProject(path) {
 			s.changed[path] = p.name
 		} else {
@@ -511,7 +549,6 @@ func (r *recorder) onChange(p *proc, path string, t time.Time) {
 	}
 	s.changedOut[path] = p.name
 	group := groupOf(path, s.home)
-	r.recordFinding(s, "changed files outside the project", tilde(group, s.home), p.name)
 	r.emitLimited(&feedLine{t: t, s: s, who: p.name, verb: verb, what: s.show(path), note: "outside the project", key: path}, group)
 }
 
@@ -542,7 +579,7 @@ func (r *recorder) onDelete(p *proc, path string, t time.Time) {
 		fl.dead = true
 		delete(r.pending, path)
 	}
-	if ignoredChange(path, s.home) {
+	if ignoredChange(path, s.home) || p.name == "security" && secretLabel(path, s.home) == "your keychain" {
 		return
 	}
 	if _, wrote := s.changed[path]; wrote && s.newFiles[path] {
@@ -573,7 +610,6 @@ func (r *recorder) onDelete(p *proc, path string, t time.Time) {
 	}
 	s.deleted[path] = p.name
 	group := groupOf(path, s.home)
-	r.recordFinding(s, "deleted files outside the project", tilde(group, s.home), p.name)
 	r.emitLimited(&feedLine{t: t, s: s, who: p.name, verb: "delete", what: s.show(path), note: "outside the project"}, group)
 }
 
@@ -621,9 +657,15 @@ func (r *recorder) recordFinding(s *session, label, what, who string) {
 	key := label + "\x00" + what
 	if f := s.findKey[key]; f != nil {
 		f.count++
+		if who != "" && !contains(f.who, who) {
+			f.who = append(f.who, who)
+		}
 		return
 	}
-	f := &finding{label: label, what: what, who: who, count: 1}
+	f := &finding{label: label, what: what, count: 1}
+	if who != "" {
+		f.who = []string{who}
+	}
 	s.findKey[key] = f
 	s.findings = append(s.findings, f)
 }
@@ -640,6 +682,10 @@ func (r *recorder) emitLimited(fl *feedLine, group string) {
 func (r *recorder) emit(fl *feedLine) {
 	if r.quiet {
 		return
+	}
+	if st := fl.s.started; st != nil {
+		fl.s.started = nil
+		r.queue = append(r.queue, st)
 	}
 	r.queue = append(r.queue, fl)
 	if fl.key != "" {
@@ -673,7 +719,7 @@ func (r *recorder) finish(s *session, t time.Time, why string) {
 		s.note = strings.TrimSpace(s.note + " " + why)
 	}
 	for pid, name := range s.running {
-		if pid != s.root {
+		if pid != s.root && why == "" {
 			r.recordFinding(s, "left running after it finished", fmt.Sprintf("%s (pid %d)", name, pid), "")
 		}
 		delete(r.procs, pid)
@@ -688,6 +734,9 @@ func (r *recorder) finish(s *session, t time.Time, why string) {
 			r.sessions = append(r.sessions[:i], r.sessions[i+1:]...)
 			break
 		}
+	}
+	if s.empty() {
+		return
 	}
 	path, err := r.writeReport(s)
 	if err != nil {
@@ -726,4 +775,19 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func (s *session) addCred(label, program string) {
+	if !contains(s.creds[label], program) {
+		s.creds[label] = append(s.creds[label], program)
+	}
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }

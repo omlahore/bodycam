@@ -136,7 +136,7 @@ func TestSession(t *testing.T) {
 	for _, want := range []string{
 		"read AWS credentials: `~/.aws/credentials` (by git)",
 		"changed a shell startup file: `~/.zshrc`",
-		"changed files outside the project: `~/other/notes.txt`",
+		"## Files changed outside the project (2)\n\n- `~/.zshrc`\n- `~/other/notes.txt`",
 		"`src/cart.ts` (new)",
 		"`src/app.ts`",
 		"1 file under node_modules",
@@ -179,5 +179,40 @@ func TestDroppedEvents(t *testing.T) {
 	md, _ := os.ReadFile(s.r.reports[0])
 	if !strings.Contains(string(md), "macOS dropped 5 events") {
 		t.Errorf("report doesn't mention dropped events:\n%s", md)
+	}
+}
+
+func TestOwnCredentialsAreNotFlagged(t *testing.T) {
+	s := newScript(t)
+	s.exec(400, "/Users/dev/app", "claude")
+	s.fork(400, 401)
+	s.exec(401, "/Users/dev/app", "security", "find-generic-password", "-a", "dev", "-w", "-s", "Claude Code-credentials")
+	s.read(401, "/Users/dev/Library/Keychains/login.keychain-db")
+	s.fork(400, 402)
+	s.exec(402, "/Users/dev/app", "gh", "pr", "list")
+	s.read(402, "/Users/dev/.config/gh/hosts.yml")
+	s.fork(402, 403)
+	s.exec(403, "/Users/dev/app", "security", "find-generic-password", "-s", "gh:github.com", "-wa", "dev")
+	s.fork(400, 404)
+	s.exec(404, "/Users/dev/app", "cat", "/Users/dev/.config/gh/hosts.yml")
+	s.read(404, "/Users/dev/.config/gh/hosts.yml")
+	s.fork(400, 405)
+	s.exec(405, "/Users/dev/app", "security", "find-generic-password", "-s", "Chrome Safe Storage", "-w")
+	s.send(400, "exit", map[string]any{"stat": 0})
+
+	md, _ := os.ReadFile(s.r.reports[0])
+	report := string(md)
+	for _, want := range []string{
+		"read your GitHub CLI token: `~/.config/gh/hosts.yml` (by cat)",
+		"read from your keychain: `security find-generic-password -s 'Chrome Safe Storage' -w`",
+		"- your GitHub CLI token, by gh",
+		"- your keychain, by security",
+	} {
+		if !strings.Contains(report, want) {
+			t.Errorf("report is missing %q:\n%s", want, report)
+		}
+	}
+	if strings.Contains(report, "Claude Code-credentials` (") || strings.Contains(report, "gh:github.com` (") {
+		t.Errorf("flagged a tool reading its own login:\n%s", report)
 	}
 }
