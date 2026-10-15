@@ -259,3 +259,34 @@ func TestSaveAndReplay(t *testing.T) {
 		}
 	}
 }
+
+func TestWrappedCommand(t *testing.T) {
+	s := newScript(t)
+	s.r.wrapPPID, s.r.wrapName = 77, "npm"
+	execFrom := func(pid, ppid int, exe string, args ...string) {
+		s.seq++
+		line, _ := json.Marshal(map[string]any{
+			"time":           s.clock.Format(time.RFC3339Nano),
+			"global_seq_num": s.seq,
+			"process":        map[string]any{"audit_token": map[string]any{"pid": pid, "ruid": 501}, "ppid": ppid, "executable": file("/usr/local/bin/bodycam")},
+			"event": map[string]any{"exec": map[string]any{
+				"target": map[string]any{"executable": file(exe)}, "args": args, "cwd": file("/Users/dev/shop"),
+			}},
+		})
+		s.r.handle(line)
+	}
+	execFrom(90, 77, "/usr/sbin/lsof", "lsof", "-nP")
+	execFrom(91, 12, "/usr/local/bin/claude", "claude")
+	execFrom(92, 77, "/opt/homebrew/bin/node", "node", "/opt/homebrew/bin/npm", "install")
+	if len(s.r.sessions) != 1 || s.r.sessions[0].root != 92 || s.r.sessions[0].agent != "npm" {
+		t.Fatalf("want one npm session rooted at 92, got %+v", s.r.sessions)
+	}
+	s.fork(92, 93)
+	s.exec(93, "/Users/dev/shop", "sh", "-c", "node install.js")
+	s.read(93, "/Users/dev/.ssh/id_ed25519")
+	s.send(92, "exit", map[string]any{"stat": 0})
+	md, _ := os.ReadFile(s.r.reports[0])
+	if !strings.Contains(string(md), "read an SSH private key: `~/.ssh/id_ed25519` (by sh)") {
+		t.Errorf("report is missing the key read:\n%s", md)
+	}
+}

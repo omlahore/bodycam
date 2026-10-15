@@ -31,7 +31,8 @@ func usage() {
 the files they change, the secrets they read and the addresses they connect to.
 
 Usage:
-  sudo bodycam                    record every agent you start, and report when each one exits
+  bodycam claude                  run claude, or any other command, and record what it does
+  sudo bodycam                    record every agent started anywhere, and report when each exits
   sudo bodycam --pid 4242         also record an agent that was already running
   bodycam --replay events.jsonl   make reports from a log saved with --save
 
@@ -64,11 +65,6 @@ func main() {
 		fmt.Println("bodycam", version)
 		return
 	}
-	if flag.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "bodycam: unexpected argument %q. Start your agent in another terminal tab instead.\n\n", flag.Arg(0))
-		usage()
-		os.Exit(2)
-	}
 
 	own := currentOwner()
 	r := newRecorder(os.Stdout, own, *quiet, extra)
@@ -97,8 +93,13 @@ func main() {
 		return
 	}
 
+	if flag.NArg() > 0 {
+		r.live = true
+		os.Exit(runCommand(r, flag.Args(), *quiet))
+	}
+
 	if os.Geteuid() != 0 {
-		fmt.Fprint(os.Stderr, "bodycam reads macOS Endpoint Security events, which needs root. Run it with sudo:\n\n  sudo bodycam\n")
+		fmt.Fprint(os.Stderr, "To record an agent, start it through bodycam:\n\n  bodycam claude\n\nTo watch for agents started anywhere, run bodycam with sudo:\n\n  sudo bodycam\n")
 		os.Exit(1)
 	}
 
