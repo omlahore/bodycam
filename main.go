@@ -96,6 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	r.live = true
 	events, err := supportedEvents()
 	if err != nil {
 		fail(err)

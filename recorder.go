@@ -111,12 +111,15 @@ type recorder struct {
 	wantPID   int
 	count     int
 	resolve   func([]string) map[string]string
+	width     int
+	live      bool
 }
 
 func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder {
 	r := &recorder{
 		out:       out,
 		color:     useColor(out),
+		width:     termWidth(out),
 		quiet:     quiet,
 		agents:    map[string]bool{},
 		procs:     map[int]*proc{},
@@ -165,7 +168,7 @@ func (r *recorder) handle(line []byte) {
 	defer r.mu.Unlock()
 
 	r.events++
-	if r.lastSeq != 0 && m.Seq > r.lastSeq+1 {
+	if r.live && r.lastSeq != 0 && m.Seq > r.lastSeq+1 {
 		for _, s := range r.sessions {
 			s.dropped += int(m.Seq - r.lastSeq - 1)
 		}

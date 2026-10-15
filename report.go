@@ -10,18 +10,21 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 const (
-	dim    = "\033[2m"
-	red    = "\033[31m"
-	green  = "\033[32m"
-	yellow = "\033[33m"
-	blue   = "\033[34m"
-	cyan   = "\033[36m"
-	bold   = "\033[1m"
-	reset  = "\033[0m"
+	dim     = "\033[2m"
+	red     = "\033[31m"
+	green   = "\033[32m"
+	yellow  = "\033[33m"
+	blue    = "\033[34m"
+	cyan    = "\033[36m"
+	bold    = "\033[1m"
+	redBold = "\033[1;31m"
+	reset   = "\033[0m"
 )
 
 func useColor(w io.Writer) bool {
@@ -37,6 +40,21 @@ func useColor(w io.Writer) bool {
 	}
 	st, err := f.Stat()
 	return err == nil && st.Mode()&os.ModeCharDevice != 0
+}
+
+func termWidth(w io.Writer) int {
+	if c, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && c > 0 {
+		return c
+	}
+	f, ok := w.(*os.File)
+	if !ok {
+		return 0
+	}
+	var ws struct{ rows, cols, x, y uint16 }
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&ws))); errno != 0 {
+		return 0
+	}
+	return int(ws.cols)
 }
 
 func (r *recorder) paint(color, s string) string {
@@ -56,12 +74,20 @@ func (r *recorder) print(fl *feedLine) {
 	if len(r.sessions) > 1 {
 		tag = r.paint(dim, fmt.Sprintf("#%d ", fl.s.n))
 	}
+	what := fl.what
+	if r.width > 0 {
+		room := r.width - 27 - len(tag)
+		if fl.note != "" {
+			room -= len([]rune(fl.note)) + 4
+		}
+		what = oneLine(what, max(room, 24))
+	}
 	line := fmt.Sprintf("%s  %s%s %s  %s",
 		r.paint(dim, fl.t.Local().Format("15:04:05")),
 		tag,
 		r.paint(cyan, fmt.Sprintf("%-8s", oneLine(fl.who, 8))),
 		r.paint(verbColor[fl.verb], fmt.Sprintf("%-6s", fl.verb)),
-		fl.what)
+		what)
 	if fl.note != "" {
 		color := red
 		if fl.note == "outside the project" {
@@ -108,7 +134,7 @@ func (r *recorder) printSummary(s *session, report string) {
 	if len(s.findings) == 0 {
 		fmt.Fprintln(w, "  "+r.paint(green, "nothing stood out"))
 	} else {
-		fmt.Fprintln(w, "  "+r.paint(red+bold, plural(len(s.findings), "thing")+" to look at"))
+		fmt.Fprintln(w, "  "+r.paint(redBold, plural(len(s.findings), "thing")+" to look at"))
 		for i, f := range s.findings {
 			if i == 12 {
 				fmt.Fprintf(w, "    …and %d more in the report\n", len(s.findings)-i)

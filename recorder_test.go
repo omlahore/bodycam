@@ -174,6 +174,7 @@ func TestChildrenOutliveAgent(t *testing.T) {
 
 func TestDroppedEvents(t *testing.T) {
 	s := newScript(t)
+	s.r.live = true
 	s.exec(300, "/Users/dev/app", "gemini")
 	s.seq += 5
 	s.send(300, "exit", map[string]any{"stat": 0})
