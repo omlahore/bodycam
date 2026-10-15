@@ -113,13 +113,19 @@ type recorder struct {
 	resolve   func([]string) map[string]string
 	width     int
 	live      bool
+	feed      io.Writer
+	feedColor bool
+	wrapPPID  int
+	wrapName  string
 }
 
 func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder {
 	r := &recorder{
 		out:       out,
 		color:     useColor(out),
+		feedColor: useColor(out),
 		width:     termWidth(out),
+		feed:      out,
 		quiet:     quiet,
 		agents:    map[string]bool{},
 		procs:     map[int]*proc{},
@@ -213,7 +219,12 @@ func (r *recorder) handle(line []byte) {
 			script = e.Script.Path
 		}
 		if p == nil {
-			agent := agentName(r.agents, e.Target.Executable.Path, e.Args, script)
+			agent := ""
+			if r.wrapPPID == 0 {
+				agent = agentName(r.agents, e.Target.Executable.Path, e.Args, script)
+			} else if m.Process.PPID == r.wrapPPID && e.Target.Executable.Path != "/usr/sbin/lsof" {
+				agent = r.wrapName
+			}
 			if agent == "" {
 				return
 			}

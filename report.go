@@ -58,7 +58,11 @@ func termWidth(w io.Writer) int {
 }
 
 func (r *recorder) paint(color, s string) string {
-	if !r.color || s == "" {
+	return paint(r.color, color, s)
+}
+
+func paint(on bool, color, s string) string {
+	if !on || s == "" {
 		return s
 	}
 	return color + s + reset
@@ -70,9 +74,10 @@ var verbColor = map[string]string{
 }
 
 func (r *recorder) print(fl *feedLine) {
+	c := r.feedColor
 	tag := ""
 	if len(r.sessions) > 1 {
-		tag = r.paint(dim, fmt.Sprintf("#%d ", fl.s.n))
+		tag = paint(c, dim, fmt.Sprintf("#%d ", fl.s.n))
 	}
 	what := fl.what
 	if r.width > 0 {
@@ -83,19 +88,19 @@ func (r *recorder) print(fl *feedLine) {
 		what = oneLine(what, max(room, 24))
 	}
 	line := fmt.Sprintf("%s  %s%s %s  %s",
-		r.paint(dim, fl.t.Local().Format("15:04:05")),
+		paint(c, dim, fl.t.Local().Format("15:04:05")),
 		tag,
-		r.paint(cyan, fmt.Sprintf("%-8s", oneLine(fl.who, 8))),
-		r.paint(verbColor[fl.verb], fmt.Sprintf("%-6s", fl.verb)),
+		paint(c, cyan, fmt.Sprintf("%-8s", oneLine(fl.who, 8))),
+		paint(c, verbColor[fl.verb], fmt.Sprintf("%-6s", fl.verb)),
 		what)
 	if fl.note != "" {
 		color := red
 		if fl.note == "outside the project" {
 			color = yellow
 		}
-		line += "  " + r.paint(color, "! "+fl.note)
+		line += "  " + paint(c, color, "! "+fl.note)
 	}
-	fmt.Fprintln(r.out, line)
+	fmt.Fprintln(r.feed, line)
 }
 
 func (f *finding) String() string { return f.format(f.what) }

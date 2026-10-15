@@ -27,6 +27,7 @@ type esToken struct {
 
 type esProcess struct {
 	AuditToken esToken `json:"audit_token"`
+	PPID       int     `json:"ppid"`
 	Executable esFile  `json:"executable"`
 }
 
@@ -139,7 +140,7 @@ var unusedFields = map[string]bool{
 	"parent_audit_token": true, "responsible_audit_token": true, "entitlements": true, "fds": true,
 	"tty": true, "start_time": true, "is_platform_binary": true, "is_es_client": true, "session_id": true,
 	"group_id": true, "cs_validation_category": true, "thread": true, "mach_time": true, "action": true,
-	"action_type": true, "seq_num": true, "dyld_exec_path": true, "last_fd": true, "image_cputype": true,
+	"action_type": true, "seq_num": true, "original_ppid": true, "dyld_exec_path": true, "last_fd": true, "image_cputype": true,
 	"image_cpusubtype": true, "path_truncated": true, "schema_version": true, "version": true,
 }
 
