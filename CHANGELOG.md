@@ -2,6 +2,7 @@
 
 ## 0.2.0
 
+- A menu bar app. It records every agent you start, turns red while one runs, sends a notification for each thing to look at and keeps a window per run with its timeline. Download `bodycam-app.zip` from the release.
 - `bodycam claude`, or any other command, records that command in the same terminal. bodycam asks for your password once for Apple's `eslogger` and runs the command as you. The live feed goes to `~/Library/Logs/bodycam/live.log`.
 - `bodycam --demo` records a harmless pretend agent so you can see what bodycam flags.
 - Catches `git push --force` when options come before `push`, like `git -C dir push --force`.

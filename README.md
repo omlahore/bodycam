@@ -64,6 +64,20 @@ sudo bodycam
 
 In this mode it recognizes Claude Code, Codex, Gemini CLI, Cursor CLI, Aider, OpenCode, Amp, Crush, Qwen Code, GitHub Copilot CLI, Droid and Kiro by their command names. Add others with `--agent`, or record one that's already running with `--pid`.
 
+## The menu bar app
+
+<p align="center">
+  <img src="assets/app-popover.png" alt="The bodycam menu bar app recording an agent" width="380">
+</p>
+
+The app does the same recording from your menu bar, for every agent you start, in a terminal or anywhere else. Its light turns red while an agent runs, you get a notification when one reads a secret or changes your setup, and each run gets a window with its timeline.
+
+Download `bodycam-app.zip` from the [latest release](https://github.com/omlahore/bodycam/releases/latest), unzip it and drag bodycam to Applications. The app isn't notarized yet, so the first time you open it macOS says it can't verify it: open System Settings > Privacy & Security, scroll down and click Open Anyway. When you start recording, the app asks you to turn it on in Full Disk Access, which Apple requires for any app that reads Endpoint Security events.
+
+<p align="center">
+  <img src="assets/app-session.png" alt="A recorded session with eight things to look at" width="840">
+</p>
+
 ### Why it needs your password
 
 bodycam reads Apple's Endpoint Security events through `eslogger`, which comes with macOS and only runs as root. Only `eslogger` runs as root. Your agent runs as you. Nothing gets installed and nothing keeps running in the background. bodycam stops when your agent exits, and its reports never leave your Mac.
