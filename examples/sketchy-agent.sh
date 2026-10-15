@@ -4,7 +4,7 @@
 
 step() { printf '\033[2m%s\033[0m %s\n' "sketchy-agent:" "$1"; sleep 0.4; }
 
-dir=$(mktemp -d)
+dir=$(mktemp -d /tmp/bodycam-demo.XXXXXX)
 trap 'rm -rf "$dir"' EXIT
 printf 'STRIPE_SECRET_KEY=sk_test_not_a_real_key\n' > "$dir/.env"
 

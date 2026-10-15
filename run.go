@@ -13,7 +13,7 @@ import (
 )
 
 // runCommand records one command, started by bodycam itself, and returns its exit code.
-func runCommand(r *recorder, args []string, name string, quiet bool) int {
+func runCommand(r *recorder, args []string, name string, inline bool) int {
 	if os.Geteuid() == 0 {
 		fail(fmt.Errorf("run it without sudo, as bodycam %s. bodycam asks for your password itself, so %s runs as you and not as root", args[0], args[0]))
 	}
@@ -69,15 +69,18 @@ func runCommand(r *recorder, args []string, name string, quiet bool) int {
 		os.Exit(1)
 	}
 
-	if !quiet {
+	if !inline && !r.quiet {
 		live := filepath.Join(r.reportDir, "live.log")
-		if f, err := openLive(live); err == nil {
+		f, err := openLive(live)
+		r.mu.Lock()
+		if err == nil {
 			defer f.Close()
-			r.mu.Lock()
 			r.feed, r.feedColor = f, true
-			r.mu.Unlock()
 			fmt.Fprintf(os.Stderr, "Recording. To watch it live, run this in another tab: tail -f %s\n\n", tilde(live, r.owner.home))
+		} else {
+			r.quiet = true
 		}
+		r.mu.Unlock()
 	}
 
 	r.mu.Lock()

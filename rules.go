@@ -32,7 +32,10 @@ func relHome(p, home string) (string, bool) {
 	return strings.TrimPrefix(strings.TrimPrefix(p, home), "/"), true
 }
 
-var tempDirs = []string{"/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/private/var/tmp", "/dev"}
+var tempDirs = []string{
+	"/tmp", "/private/tmp", "/var/folders", "/private/var/folders", "/private/var/tmp", "/dev",
+	"/private/var/db/sudo", "/private/var/run/utmpx",
+}
 
 // Folders where agents, package managers and shells keep their own state.
 var ownDirs = []string{
@@ -280,7 +283,7 @@ var commandRules = []struct {
 	{regexp.MustCompile(`\blaunchctl\s+(load|bootstrap|submit|enable)\b`), "registered a background job"},
 	{regexp.MustCompile(`(^|[\s;&|(])crontab\s+(-e|-r|[^-\s])`), "changed scheduled jobs"},
 	{regexp.MustCompile(`(^|[\s;&|(/])osascript\b`), "ran AppleScript"},
-	{regexp.MustCompile(`\bgit\s+push\b[^;&|]*\s(-f|--force|--force-with-lease)\b`), "ran git push --force"},
+	{regexp.MustCompile(`\bgit\b[^;&|]*\spush\b[^;&|]*\s(-f|--force|--force-with-lease)\b`), "ran git push --force"},
 	{regexp.MustCompile(`\b(npm|pnpm|yarn)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b|\bgh\s+release\s+create\b|\bdocker\s+push\b`), "published something"},
 	{regexp.MustCompile(`\bxattr\b[^;&|]*com\.apple\.quarantine|\bxattr\s+-c\b`), "removed a download quarantine flag"},
 	{regexp.MustCompile(`\bspctl\s+--master-disable\b|\bcsrutil\s+disable\b`), "turned off a macOS protection"},

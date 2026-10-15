@@ -101,12 +101,19 @@ func main() {
 	}
 
 	if *demo {
+		script, err := writeDemo()
+		if err != nil {
+			fail(err)
+		}
+		defer os.Remove(script)
 		r.live = true
-		os.Exit(runCommand(r, []string{"/bin/sh", "-c", demoScript, "sketchy-agent"}, "sketchy-agent", true))
+		code := runCommand(r, []string{"/bin/sh", script}, "sketchy-agent", true)
+		os.Remove(script)
+		os.Exit(code)
 	}
 	if flag.NArg() > 0 {
 		r.live = true
-		os.Exit(runCommand(r, flag.Args(), filepath.Base(flag.Arg(0)), *quiet))
+		os.Exit(runCommand(r, flag.Args(), filepath.Base(flag.Arg(0)), false))
 	}
 
 	if os.Geteuid() != 0 {
@@ -205,4 +212,14 @@ func currentOwner() owner {
 func fail(err error) {
 	fmt.Fprintln(os.Stderr, "bodycam:", err)
 	os.Exit(1)
+}
+
+func writeDemo() (string, error) {
+	f, err := os.CreateTemp("", "sketchy-agent-*.sh")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	_, err = f.WriteString(demoScript)
+	return f.Name(), err
 }
