@@ -113,7 +113,7 @@ func main() {
 	}
 	if flag.NArg() > 0 {
 		r.live = true
-		os.Exit(runCommand(r, flag.Args(), filepath.Base(flag.Arg(0)), false))
+		os.Exit(runCommand(r, flag.Args(), commandName(flag.Args()), false))
 	}
 
 	if os.Geteuid() != 0 {
@@ -222,4 +222,13 @@ func writeDemo() (string, error) {
 	defer f.Close()
 	_, err = f.WriteString(demoScript)
 	return f.Name(), err
+}
+
+// commandName names a run after its script for `sh script.sh` and `node app.js` style commands.
+func commandName(args []string) string {
+	name := filepath.Base(args[0])
+	if (shells[name] || isInterpreter(name)) && len(args) > 1 && !strings.HasPrefix(args[1], "-") {
+		return strings.TrimSuffix(filepath.Base(args[1]), filepath.Ext(args[1]))
+	}
+	return name
 }

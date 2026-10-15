@@ -229,7 +229,7 @@ func (r *recorder) handle(line []byte) {
 				return
 			}
 			s := r.newSession(agent, pid, e.Cwd.Path, r.homeOf(m.Process.AuditToken.RUID), t, false)
-			r.procs[pid] = &proc{pid: pid, name: agent, s: s}
+			r.procs[pid] = &proc{pid: pid, name: agent, s: s, args: execTail(e)}
 			r.keep(line)
 			return
 		}
@@ -383,7 +383,7 @@ func (r *recorder) onExec(p *proc, e execEvent, t time.Time) {
 	if len(args) == 0 {
 		args = []string{e.Target.Executable.Path}
 	}
-	tail := strings.Join(args[1:], "\x00")
+	tail := execTail(e)
 	if p.args == tail && len(args) > 1 {
 		return
 	}
@@ -831,4 +831,13 @@ func (r *recorder) replayConn(line []byte) {
 	if p := r.procs[c.Conn.PID]; p != nil {
 		r.addConn(p, c.Conn.Name, c.Conn.Remote, c.Conn.Time)
 	}
+}
+
+// execTail is an exec's arguments after the program name. A program that re-executes itself
+// with the same arguments, like /bin/sh on macOS, is recorded once.
+func execTail(e execEvent) string {
+	if len(e.Args) < 2 {
+		return ""
+	}
+	return strings.Join(e.Args[1:], "\x00")
 }

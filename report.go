@@ -79,13 +79,14 @@ func (r *recorder) print(fl *feedLine) {
 	if len(r.sessions) > 1 {
 		tag = paint(c, dim, fmt.Sprintf("#%d ", fl.s.n))
 	}
-	what := fl.what
+	what, note := fl.what, fl.note
 	if r.width > 0 {
-		room := r.width - 27 - len(tag)
-		if fl.note != "" {
-			room -= len([]rune(fl.note)) + 4
+		room := r.width - 27
+		if note != "" {
+			note = oneLine(note, max(room/2-4, 12))
+			room -= len([]rune(note)) + 4
 		}
-		what = oneLine(what, max(room, 24))
+		what = oneLine(what, max(room, 12))
 	}
 	line := fmt.Sprintf("%s  %s%s %s  %s",
 		paint(c, dim, fl.t.Local().Format("15:04:05")),
@@ -93,12 +94,12 @@ func (r *recorder) print(fl *feedLine) {
 		paint(c, cyan, fmt.Sprintf("%-8s", oneLine(fl.who, 8))),
 		paint(c, verbColor[fl.verb], fmt.Sprintf("%-6s", fl.verb)),
 		what)
-	if fl.note != "" {
+	if note != "" {
 		color := red
 		if fl.note == "outside the project" {
 			color = yellow
 		}
-		line += "  " + paint(c, color, "! "+fl.note)
+		line += "  " + paint(c, color, "! "+note)
 	}
 	fmt.Fprintln(r.feed, line)
 }

@@ -76,7 +76,7 @@ func runCommand(r *recorder, args []string, name string, inline bool) int {
 		if err == nil {
 			defer f.Close()
 			r.feed, r.feedColor = f, true
-			fmt.Fprintf(os.Stderr, "Recording. To watch it live, run this in another tab: tail -f %s\n\n", tilde(live, r.owner.home))
+			fmt.Fprintf(os.Stderr, "Recording. Live feed: tail -f %s\n\n", tilde(live, r.owner.home))
 		} else {
 			r.quiet = true
 		}

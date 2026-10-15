@@ -161,3 +161,18 @@ func TestRedact(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandName(t *testing.T) {
+	cases := map[string][]string{
+		"claude":        {"claude", "-p", "hi"},
+		"sketchy-agent": {"sh", "examples/sketchy-agent.sh"},
+		"server":        {"node", "server.js"},
+		"npm":           {"npm", "install"},
+		"bash":          {"bash", "-c", "ls"},
+	}
+	for want, args := range cases {
+		if got := commandName(args); got != want {
+			t.Errorf("commandName(%q) = %q, want %q", args, got, want)
+		}
+	}
+}
