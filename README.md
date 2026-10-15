@@ -133,6 +133,13 @@ Endpoint Security has no event for network connections, so bodycam checks the ag
 
 bodycam records what an agent did. It doesn't stop it. To block things, use your agent's permission settings or a sandbox.
 
+## Compared with
+
+- A sandbox, like your agent's own permission settings, blocks things before they happen. bodycam doesn't block anything. It shows what the agent did, including what its child processes did.
+- The agent's own transcript or hooks show the tool calls the agent made. They don't show what the programs it started did. In the demo above it's `node`, running the tests, that reads `.env`.
+- LuLu and Little Snitch watch network connections for the whole Mac, and they're better at it than bodycam's 2-second sampling. bodycam is about one agent's commands, files and secrets.
+- Activity Monitor, `fs_usage` and similar tools show everything on the Mac at once. bodycam follows one agent and everything it starts, flags what matters and writes a report you can share.
+
 ## Not on a Mac?
 
 [AgentSight](https://github.com/eunomia-bpf/agentsight) watches AI agents on Linux with eBPF, and [Aegis](https://github.com/antropos17/Aegis) does it on Windows.
