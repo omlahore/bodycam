@@ -143,7 +143,11 @@ func (r *recorder) printSummary(s *session, report string) {
 				fmt.Fprintf(w, "    …and %d more in the report\n", len(s.findings)-i)
 				break
 			}
-			fmt.Fprintln(w, "    "+r.paint(red, "! ")+f.String())
+			line := f.String()
+			if r.width > 0 {
+				line = oneLine(line, max(r.width-6, 20))
+			}
+			fmt.Fprintln(w, "    "+r.paint(red, "! ")+line)
 		}
 	}
 	runs := 0
