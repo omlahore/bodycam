@@ -195,6 +195,9 @@ a:hover { text-decoration-thickness: 2px; }
 
 .shot { display: block; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 18px 50px rgba(18,18,18,.18); }
 .shot.wide { margin-top: 44px; width: 100%; }
+.tour { margin: 44px 0 0; }
+.tour video { width: 100%; height: auto; display: block; }
+.tour figcaption { margin-top: 14px; font-size: 15px; color: var(--muted); }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 44px; }
 .prose p + p { margin-top: 18px; }
 .prose p { max-width: 58ch; }
@@ -331,6 +334,12 @@ a:hover { text-decoration-thickness: 2px; }
     <div class="wrap">
       <h2 class="h2" id="app-title">In your menu bar</h2>
       <p class="lede">The app records every agent you start, in a terminal or anywhere else. Its light turns red while one runs, and you get a notification when an agent reads a secret or changes your setup.</p>
+      <figure class="tour">
+        <video class="shot" controls playsinline preload="none" poster="promo-poster.jpg" width="1920" height="1080" aria-label="A 50-second tour of the bodycam menu bar app, recorded on a real Mac">
+          <source src="promo.mp4" type="video/mp4">
+        </video>
+        <figcaption>A 50-second tour, recorded on a real Mac. Turn the sound on.</figcaption>
+      </figure>
       <div class="split">
         <img class="shot" src="app-popover.png" width="380" height="377" alt="The bodycam menu bar app with recent sessions and their flags" loading="lazy">
         <div class="prose">
