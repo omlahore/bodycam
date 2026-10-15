@@ -97,7 +97,7 @@ Connections bodycam saw open (it checks every 2 seconds, so short ones can be mi
 
 ## How it works
 
-`eslogger` streams Endpoint Security events for every process on the Mac. bodycam waits for an agent to start, follows that process and everything it starts, and keeps only their events: programs run, files opened, written, renamed and deleted, background items registered and Unix socket connections. Everything else is dropped as it arrives, so bodycam stays at about 15 MB of memory even on a busy Mac.
+`eslogger` streams Endpoint Security events for every process on the Mac. bodycam waits for an agent to start, follows that process and everything it starts, and keeps only their events: programs run, files opened, written, renamed and deleted, background items registered and Unix socket connections. Everything else is dropped as it arrives, so bodycam used about 15 MB of memory in my tests.
 
 Endpoint Security has no event for network connections, so bodycam checks the agent's open TCP connections with `lsof` every 2 seconds. It also lists the hosts named in commands like `curl` and `git`.
 
