@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; }
+  body {
+    width: 1280px; height: 640px; overflow: hidden; position: relative;
+    background: #FFD23A; color: #121212;
+    font-family: "Archivo", sans-serif;
+  }
+  .corner { position: absolute; width: 56px; height: 56px; border: 0 solid #121212; }
+  .tl { top: 36px; left: 36px; border-top-width: 6px; border-left-width: 6px; }
+  .tr { top: 36px; right: 36px; border-top-width: 6px; border-right-width: 6px; }
+  .bl { bottom: 36px; left: 36px; border-bottom-width: 6px; border-left-width: 6px; }
+  .br { bottom: 36px; right: 36px; border-bottom-width: 6px; border-right-width: 6px; }
+  .rec {
+    position: absolute; top: 58px; left: 118px;
+    font: 700 26px/1 "JetBrains Mono", monospace; letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .dot { width: 20px; height: 20px; border-radius: 50%; background: #E8261B; box-shadow: 0 0 0 4px rgba(232,38,27,.18); }
+  .time { position: absolute; top: 58px; right: 118px; font: 500 26px/1 "JetBrains Mono", monospace; }
+  .icon { position: absolute; left: 150px; top: 128px; width: 260px; height: 387px; }
+  .copy { position: absolute; left: 500px; top: 168px; right: 96px; }
+  h1 {
+    margin: 0; font-size: 126px; line-height: 0.92; font-weight: 850;
+    font-variation-settings: "wdth" 118; letter-spacing: -0.02em;
+  }
+  p { margin: 30px 0 0; font-size: 40px; line-height: 1.22; font-weight: 500; font-variation-settings: "wdth" 100; max-width: 640px; }
+  code {
+    display: inline-block; margin-top: 36px; padding: 14px 24px; border-radius: 12px;
+    background: #121212; color: #FFD23A; font: 500 30px/1 "JetBrains Mono", monospace;
+  }
+  code b { color: #8A7A3A; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+  <div class="rec"><span class="dot"></span>REC</div>
+  <div class="time">00:07:32</div>
+  <img class="icon" src="device.svg" alt="">
+  <div class="copy">
+    <h1>bodycam</h1>
+    <p>See everything your AI coding agent did on your Mac.</p>
+    <code><b>$</b> bodycam claude</code>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="314 218.5 396 589" width="396" height="589"><title>bodycam</title>
+<g transform="translate(16 16)">
+<g transform="translate(496 300)" stroke="#121212" stroke-width="24" stroke-linejoin="round">
+  <g transform="translate(0 0)">
+    
+    <rect x="-172" y="0" width="344" height="452" rx="68" fill="#FFF8EA"/>
+    <circle cx="0" cy="272" r="98" fill="#121212"/>
+    <circle cx="0" cy="272" r="46" fill="none" stroke="#FFF8EA" stroke-width="14"/>
+    <circle cx="-100" cy="114" r="24" fill="#E8261B" stroke-width="18"/>
+  </g>
+  
+  <g fill="#FFF8EA"><rect x="-96" y="-58" width="192" height="138" rx="30"/></g>
+  <circle cx="0" cy="40" r="16" fill="#121212" stroke="none"/>
+</g>
+</g>
+</svg>
