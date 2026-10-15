@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- `bodycam claude`, or any other command, records that command in the same terminal. bodycam asks for your password once for Apple's `eslogger` and runs the command as you. The live feed goes to `~/Library/Logs/bodycam/live.log`.
+- `bodycam --demo` records a harmless pretend agent so you can see what bodycam flags.
+- Catches `git push --force` when options come before `push`, like `git -C dir push --force`.
+- Runs of `sh script.sh` or `node app.js` are named after the script, and a program that restarts itself, like `/bin/sh`, shows up once.
+- The live feed and the summary fit the terminal width.
+- Reports no longer look up hostnames for network addresses, so nothing leaves the Mac.
+
 ## 0.1.1
 
 - Values in command lines that look like keys or tokens, such as `API_KEY=...`, `Bearer ...` or `--password=...`, are masked in the live feed and the reports.

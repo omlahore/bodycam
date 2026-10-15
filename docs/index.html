@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bodycam: a bodycam for your AI coding agent</title>
+<meta name="description" content="See everything your AI coding agent did on your Mac: the commands it ran, the files it changed, the secrets it read and the servers it connected to.">
+<link rel="canonical" href="https://omlahore.github.io/bodycam/">
+<meta name="theme-color" content="#FFD23A">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="bodycam">
+<meta property="og:title" content="bodycam: a bodycam for your AI coding agent">
+<meta property="og:description" content="See everything your AI coding agent did on your Mac. Free and open source.">
+<meta property="og:url" content="https://omlahore.github.io/bodycam/">
+<meta property="og:image" content="https://raw.githubusercontent.com/omlahore/bodycam/main/assets/banner.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="bodycam: see everything your AI coding agent did on your Mac.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="bodycam: a bodycam for your AI coding agent">
+<meta name="twitter:description" content="See everything your AI coding agent did on your Mac. Free and open source.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/omlahore/bodycam/main/assets/banner.png">
+<meta name="twitter:image:alt" content="bodycam: see everything your AI coding agent did on your Mac.">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="icon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root {
+  --yellow: #FFD23A;
+  --ink: #121212;
+  --red: #E8261B;
+  --paper: #FFFFFF;
+  --wash: #F4F4F1;
+  --line: #E3E1D9;
+  --muted: #5C5A52;
+  --muted-on-yellow: #4A473D;
+  --on-ink: #EDEDE8;
+  --on-ink-muted: #A9A79E;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 18px/1.6 var(--display);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+h1, h2, h3, p, ul, dl, dd, figure { margin: 0; }
+ul { padding: 0; list-style: none; }
+img, video { display: block; max-width: 100%; height: auto; }
+code { font: 500 0.88em/1 var(--mono); }
+a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 var(--gutter); }
+
+/* Hero */
+.hero { background: var(--yellow); padding-bottom: clamp(56px, 8vw, 104px); overflow-x: clip; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; font-size: 15px; }
+.bar-note { font: 500 13px/1 var(--mono); color: var(--muted-on-yellow); }
+.bar nav { display: flex; gap: 26px; margin-left: auto; }
+.bar nav a { text-decoration: none; font-weight: 600; }
+.bar nav a:hover { text-decoration: underline; }
+
+.wordmark {
+  margin-top: clamp(28px, 5vw, 64px);
+  font-size: min(calc((100vw - 2 * var(--gutter)) / 5.6), 192px);
+  white-space: nowrap;
+  font-weight: 850;
+  font-stretch: 122%;
+  line-height: 0.8;
+  letter-spacing: -0.025em;
+  margin-left: -0.04em;
+}
+.hero-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: center;
+  margin-top: clamp(28px, 4vw, 48px);
+}
+.pitch {
+  font-size: clamp(26px, 3.3vw, 38px);
+  line-height: 1.12;
+  font-weight: 700;
+  font-stretch: 108%;
+  letter-spacing: -0.01em;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+.sub { margin-top: 16px; max-width: 54ch; font-size: 18px; color: var(--muted-on-yellow); }
+.device { width: clamp(160px, 20vw, 250px); margin: 0 -8px 0 0; }
+
+.cmds {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 16px;
+  align-items: center;
+  margin-top: 36px;
+  max-width: 640px;
+}
+.cmd-label { font: 700 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.cmd {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--ink); color: var(--yellow);
+  border-radius: 12px; padding: 8px 8px 8px 18px;
+}
+.cmd code { flex: 1; min-width: 0; font-size: 16px; line-height: 1.45; padding: 6px 0; }
+.cmd code::before { content: "$ "; color: #8A7A3A; }
+.copy {
+  flex: none; min-width: 8ch; padding: 9px 12px; cursor: pointer;
+  font: 500 13px/1 var(--mono); color: var(--yellow);
+  background: transparent; border: 1px solid rgba(255, 210, 58, 0.38); border-radius: 8px;
+}
+.copy:hover { background: rgba(255, 210, 58, 0.12); }
+.cmd :focus-visible { outline-color: var(--yellow); outline-offset: 2px; }
+.hint { margin-top: 16px; max-width: 58ch; font-size: 15px; line-height: 1.55; color: var(--muted-on-yellow); }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 32px; }
+.button {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border-radius: 10px; border: 2px solid var(--ink);
+  font-weight: 700; text-decoration: none;
+}
+.button:hover { background: var(--ink); color: var(--yellow); }
+.button svg { width: 20px; height: 20px; fill: currentColor; }
+.meta { font-size: 15px; color: var(--muted-on-yellow); }
+
+/* Demo: the one viewfinder on the page */
+.demo { background: var(--ink); color: var(--on-ink); padding: clamp(64px, 9vw, 120px) 0; }
+.vf { position: relative; max-width: 1040px; margin: 0 auto; padding: 64px 56px 56px; }
+.corner { position: absolute; width: 44px; height: 44px; border: 0 solid var(--yellow); }
+.corner.tl { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; }
+.corner.tr { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; }
+.corner.bl { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; }
+.corner.br { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; }
+.osd {
+  position: absolute; top: 22px; left: 56px; right: 56px;
+  display: flex; justify-content: space-between;
+  font: 700 15px/1 var(--mono); letter-spacing: 0.06em; color: var(--yellow);
+}
+.rec { display: flex; align-items: center; gap: 10px; }
+.rec i { width: 11px; height: 11px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px rgba(232, 38, 27, 0.7); animation: blink 1.2s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0.15; } }
+
+@property --m { syntax: "<integer>"; inherits: false; initial-value: 0; }
+@property --s { syntax: "<integer>"; inherits: false; initial-value: 0; }
+.tc { font-weight: 500; counter-reset: m var(--m) s var(--s); animation: tc-m 3600s steps(60) infinite, tc-s 60s steps(60) infinite; }
+.tc::before { content: "00:" counter(m, decimal-leading-zero) ":" counter(s, decimal-leading-zero); }
+@keyframes tc-m { to { --m: 60; } }
+@keyframes tc-s { to { --s: 60; } }
+
+.screen img, .screen video { width: 100%; }
+.demo figcaption { max-width: 1040px; margin: 28px auto 0; padding: 0 56px; font-size: 16px; color: var(--on-ink-muted); }
+.demo figcaption strong { color: var(--on-ink); font-weight: 600; }
+.demo code { color: var(--on-ink); }
+
+/* Content sections */
+.section { padding: clamp(72px, 10vw, 128px) 0 0; scroll-margin-top: 8px; }
+.h2 {
+  font-size: clamp(36px, 5.2vw, 60px);
+  line-height: 0.98;
+  font-weight: 820;
+  font-stretch: 120%;
+  letter-spacing: -0.02em;
+}
+.lede { margin-top: 18px; max-width: 46ch; font-size: 20px; color: var(--muted); }
+
+.flags { margin-top: 44px; border-bottom: 1px solid var(--line); }
+.flag { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 8px 40px; padding: 24px 0; border-top: 1px solid var(--line); }
+.flag dt { display: flex; gap: 14px; font-size: 21px; line-height: 1.3; font-weight: 700; font-stretch: 110%; }
+.flag dt::before { content: "!"; font: 700 21px/1.3 var(--mono); color: var(--red); }
+.items { line-height: 1.75; }
+.items li { display: inline-block; max-width: 100%; }
+.items li:not(:last-child)::after { content: "\00a0\00a0\00b7\00a0\00a0"; color: #A8A598; font-weight: 700; }
+.aside { margin-top: 28px; max-width: 70ch; font-size: 17px; color: var(--muted); }
+.aside strong { color: var(--ink); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 44px; }
+.prose p + p { margin-top: 18px; }
+.prose p { max-width: 58ch; }
+
+.report { background: var(--wash); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.report-path { padding: 12px 18px; border-bottom: 1px solid var(--line); font: 500 12px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.report pre { margin: 0; padding: 18px; font: 400 13.5px/1.7 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.report b { font-weight: 700; }
+.report .flagged { color: #C21F15; }
+
+.aside-col { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
+.limits li { padding: 18px 0; border-top: 1px solid var(--line); }
+.limits li:last-child { border-bottom: 1px solid var(--line); }
+.elsewhere { margin-top: 28px; font-size: 17px; color: var(--muted); }
+.elsewhere a { color: var(--ink); font-weight: 600; }
+
+.faq { display: grid; gap: 32px; }
+.faq h3 { font-size: 21px; line-height: 1.3; font-weight: 700; font-stretch: 110%; }
+.faq p { margin-top: 8px; max-width: 60ch; color: var(--muted); }
+.faq p code { color: var(--ink); }
+
+/* Footer */
+.foot { margin-top: clamp(80px, 11vw, 140px); background: var(--yellow); padding: 40px 0; }
+.foot .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+.foot-mark { font-size: 34px; line-height: 1; font-weight: 850; font-stretch: 122%; letter-spacing: -0.02em; }
+.foot ul { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 15px; }
+.foot a { font-weight: 600; }
+
+@media (max-width: 900px) {
+  .bar nav a.optional { display: none; }
+  .hero-body { display: block; position: relative; }
+  .device { position: absolute; top: 0; right: -6px; width: 72px; margin: 0; }
+  .pitch { padding-right: 76px; }
+  .flag { grid-template-columns: minmax(0, 1fr); }
+  .split, .aside-col { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .bar-note { display: none; }
+  .cmds { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .cmd-label:not(:first-child) { margin-top: 10px; }
+  .cmd code { font-size: 14.5px; }
+  .vf { padding: 46px 14px 14px; }
+  .corner { width: 24px; height: 24px; }
+  .corner.tl, .corner.tr { border-top-width: 3px; }
+  .corner.bl, .corner.br { border-bottom-width: 3px; }
+  .corner.tl, .corner.bl { border-left-width: 3px; }
+  .corner.tr, .corner.br { border-right-width: 3px; }
+  .osd { top: 16px; left: 14px; right: 14px; font-size: 12px; }
+  .demo figcaption { padding: 0; font-size: 15px; }
+  .lede { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec i, .tc { animation: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="bar">
+      <span class="bar-note">Open source, for macOS 13 and later</span>
+      <nav aria-label="Page">
+        <a class="optional" href="#flags">What it flags</a>
+        <a class="optional" href="#how">How it works</a>
+        <a class="optional" href="#limits">Limits</a>
+        <a href="https://github.com/omlahore/bodycam">GitHub</a>
+      </nav>
+    </div>
+
+    <h1 class="wordmark">bodycam</h1>
+
+    <div class="hero-body">
+      <div>
+        <p class="pitch">See everything your AI coding agent did on your Mac.</p>
+        <p class="sub">You see every command the agent runs and every file it changes while it works, along with the secrets it reads and the servers it connects to.</p>
+
+        <div class="cmds">
+          <span class="cmd-label">Install</span>
+          <div class="cmd">
+            <code>brew install omlahore/tap/bodycam</code>
+            <button class="copy" type="button" data-copy="brew install omlahore/tap/bodycam" aria-label="Copy the install command">Copy</button>
+          </div>
+          <span class="cmd-label">Try it</span>
+          <div class="cmd">
+            <code>bodycam --demo</code>
+            <button class="copy" type="button" data-copy="bodycam --demo" aria-label="Copy the demo command">Copy</button>
+          </div>
+          <span class="cmd-label">Record</span>
+          <div class="cmd">
+            <code>bodycam claude</code>
+            <button class="copy" type="button" data-copy="bodycam claude" aria-label="Copy the record command">Copy</button>
+          </div>
+        </div>
+        <p class="hint"><code>--demo</code> runs a harmless pretend agent so you can see what gets flagged. Put <code>codex</code>, <code>gemini</code> or any other command in place of <code>claude</code>. bodycam asks for your password once and runs the agent as you.</p>
+
+        <div class="actions">
+          <a class="button" href="https://github.com/omlahore/bodycam">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            Source on GitHub
+          </a>
+          <span class="meta">Free under the MIT license</span>
+        </div>
+      </div>
+      <img class="device" src="device.svg" alt="" width="250" height="371">
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="demo" aria-label="A real run">
+    <div class="wrap">
+      <figure>
+        <div class="vf">
+          <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+          <div class="osd" aria-hidden="true"><span class="rec"><i></i>REC</span><span class="tc"></span></div>
+          <div class="screen">
+            <video id="demo-video" muted autoplay loop playsinline poster="demo-poster.webp" width="1600" height="900" aria-label="bodycam flagging a pretend agent, then recording Claude Code while it fixes a failing test">
+              <source src="demo.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+        <figcaption><strong>A real recording.</strong> First a harmless pretend agent does a few risky-looking things and bodycam flags each one. Then Claude Code fixes a failing test in a project that keeps its tax rate in <code>.env</code>, and bodycam shows it running the tests, reading <code>.env</code> and editing <code>src/config.js</code>.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="flags" aria-labelledby="flags-title">
+    <div class="wrap">
+      <h2 class="h2" id="flags-title">What it flags</h2>
+      <p class="lede">Most of what an agent does is ordinary. bodycam lists all of it in the report and calls out only these.</p>
+
+      <dl class="flags">
+        <div class="flag">
+          <dt>Secrets it reads</dt>
+          <dd><ul class="items">
+            <li>SSH private keys</li>
+            <li>AWS, Google Cloud, Azure, Kubernetes and Docker credentials</li>
+            <li>token files like <code>.npmrc</code>, <code>.netrc</code> and the GitHub CLI's</li>
+            <li><code>.env</code> files</li>
+            <li>the keychain</li>
+            <li>browser data</li>
+            <li>Messages, Mail, 1Password and Bitwarden data</li>
+            <li>shell history</li>
+          </ul></dd>
+        </div>
+        <div class="flag">
+          <dt>Changes to your setup</dt>
+          <dd><ul class="items">
+            <li>shell startup files like <code>.zshrc</code></li>
+            <li>launch agents and daemons</li>
+            <li>SSH keys and <code>authorized_keys</code></li>
+            <li>your git config</li>
+            <li>files in <code>/etc</code></li>
+            <li>commands installed into your PATH</li>
+            <li>apps in <code>/Applications</code></li>
+          </ul></dd>
+        </div>
+        <div class="flag">
+          <dt>Risky commands</dt>
+          <dd><ul class="items">
+            <li><code>sudo</code></li>
+            <li>piping a download into a shell</li>
+            <li>reading passwords with <code>security</code></li>
+            <li><code>launchctl</code> and <code>crontab</code></li>
+            <li>AppleScript</li>
+            <li>force pushes</li>
+            <li>publishing packages</li>
+            <li>removing a quarantine flag</li>
+            <li>turning off Gatekeeper or SIP</li>
+            <li><code>nc</code></li>
+            <li><code>chmod 777</code></li>
+            <li><code>rm -rf</code> on your home folder</li>
+          </ul></dd>
+        </div>
+        <div class="flag">
+          <dt>Things left behind</dt>
+          <dd><ul class="items">
+            <li>background items it registers</li>
+            <li>processes still running after it exits</li>
+          </ul></dd>
+        </div>
+      </dl>
+
+      <p class="aside"><strong>A tool reading its own credentials is listed, not flagged.</strong> When <code>gh</code> reads its token, or Claude Code reads its login from the keychain, the report puts that under its own heading.</p>
+    </div>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <h2 class="h2" id="how-title">How it works</h2>
+      <div class="split">
+        <div class="prose">
+          <p>bodycam reads Apple's Endpoint Security events through <code>eslogger</code>, which comes with macOS. It starts your agent, follows it and every process it starts, and keeps only their events: programs run, files opened, written, renamed and deleted, and background items registered. Everything else is dropped as it arrives.</p>
+          <p>Endpoint Security has no event for network connections, so bodycam checks the agent's open TCP connections with <code>lsof</code> every 2 seconds. It also lists the hosts named in commands like <code>curl</code> and <code>git</code>.</p>
+          <p>When the agent exits you get a summary in the terminal, and the full report is saved to <code>~/Library/Logs/bodycam</code> as a Markdown file. Values that look like keys or tokens are masked, so you can share a report.</p>
+          <p>Nothing gets installed and nothing keeps running in the background. Reports stay on your Mac.</p>
+        </div>
+        <div class="report" role="group" aria-label="Part of the report from the run above">
+          <div class="report-path">~/Library/Logs/bodycam/2026-10-16-014802-claude-32645.md</div>
+<pre><b># bodycam: claude, 16 Oct 2026 01:48</b>
+
+- Project: `~/code/invoice-api`
+- Ran: 01:48:02 to 01:48:12 (11s)
+
+<b>## Things to look at</b>
+
+<span class="flagged">- read an .env file: `.env` (×6, by node, claude, bat)</span>
+
+<b>## Files changed in the project (1)</b>
+
+- `src/config.js`
+
+<b>## Credentials read by the tools they belong to</b>
+
+- your keychain, by security, claude
+- your npm token file, by node</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="limits" aria-labelledby="limits-title">
+    <div class="wrap aside-col">
+      <h2 class="h2" id="limits-title">What it can't see</h2>
+      <div>
+        <ul class="limits">
+          <li>Network connections are sampled every 2 seconds, so a very short one can be missing.</li>
+          <li>Keychain access through Apple's API isn't flagged.</li>
+          <li>When events arrive faster than bodycam reads them, macOS drops some. The report says when that happened.</li>
+          <li>It records what an agent does. It doesn't stop it. To block things, use your agent's permission settings or a sandbox.</li>
+          <li>It only works on macOS 13 or later.</li>
+        </ul>
+        <p class="elsewhere">Not on a Mac? <a href="https://github.com/eunomia-bpf/agentsight">AgentSight</a> watches AI agents on Linux, and <a href="https://github.com/antropos17/Aegis">Aegis</a> does it on Windows.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq" aria-labelledby="faq-title">
+    <div class="wrap aside-col">
+      <h2 class="h2" id="faq-title">Questions</h2>
+      <div class="faq">
+        <div>
+          <h3>Why does it need my password?</h3>
+          <p>bodycam reads events through Apple's <code>eslogger</code>, which only runs as root. <code>bodycam claude</code> asks for your password once to start <code>eslogger</code>, and runs the agent itself as you, not as root. If macOS still won't let it read events, give your terminal app Full Disk Access in System Settings &gt; Privacy &amp; Security, then open a new terminal window.</p>
+        </div>
+        <div>
+          <h3>Does it send my data anywhere?</h3>
+          <p>No. Reports are saved to <code>~/Library/Logs/bodycam</code> and never leave your Mac. There's no account and no telemetry.</p>
+        </div>
+        <div>
+          <h3>Which agents does it know?</h3>
+          <p>Claude Code, Codex, Gemini CLI, Cursor CLI, Aider, OpenCode, Amp, Crush, Qwen Code, GitHub Copilot CLI, Droid and Kiro. To record anything else, start it through bodycam the same way, with its command name in place of <code>claude</code>.</p>
+        </div>
+        <div>
+          <h3>Is it free?</h3>
+          <p>Yes. bodycam is open source under the MIT license.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span class="foot-mark">bodycam</span>
+    <ul>
+      <li><a href="https://github.com/omlahore/bodycam">GitHub</a></li>
+      <li><a href="https://github.com/omlahore/bodycam/blob/main/LICENSE">MIT license</a></li>
+      <li>by <a href="https://github.com/omlahore">omlahore</a></li>
+    </ul>
+  </div>
+</footer>
+
+<p class="sr-only" role="status" id="copy-status"></p>
+
+<script>
+document.querySelectorAll("[data-copy]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var done = function (label, msg) {
+      btn.textContent = label;
+      document.getElementById("copy-status").textContent = msg;
+      clearTimeout(btn.timer);
+      btn.timer = setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+    };
+    (navigator.clipboard ? navigator.clipboard.writeText(btn.dataset.copy) : Promise.reject()).then(
+      function () { done("Copied", "Copied to the clipboard"); },
+      function () {
+        var range = document.createRange();
+        range.selectNodeContents(btn.previousElementSibling);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        done("Press ⌘C", "Selected. Press Command C to copy.");
+      }
+    );
+  });
+});
+
+(function () {
+  var video = document.getElementById("demo-video");
+  var source = video.querySelector("source");
+  var usePoster = function () {
+    if (!video.isConnected) return;
+    var img = new Image(1800, 1316);
+    img.src = video.getAttribute("poster");
+    img.alt = video.getAttribute("aria-label");
+    video.replaceWith(img);
+  };
+  source.addEventListener("error", usePoster);
+  if (video.networkState === 3) usePoster();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    video.removeAttribute("autoplay");
+    video.pause();
+    video.controls = true;
+  }
+})();
+</script>
+</body>
+</html>
