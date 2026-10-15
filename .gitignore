@@ -1,0 +1,4 @@
+/bodycam
+/dist/
+*.jsonl
+.DS_Store
