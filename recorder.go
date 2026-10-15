@@ -110,7 +110,6 @@ type recorder struct {
 	reports   []string
 	wantPID   int
 	count     int
-	resolve   func([]string) map[string]string
 	width     int
 	live      bool
 	feed      io.Writer
@@ -133,7 +132,6 @@ func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder
 		owner:     own,
 		reportDir: filepath.Join(own.home, "Library", "Logs", "bodycam"),
 		homes:     map[int]string{},
-		resolve:   reverseNames,
 	}
 	for _, a := range append(append([]string{}, defaultAgents...), extra...) {
 		r.agents[a] = true

@@ -26,7 +26,7 @@ func runCommand(r *recorder, args []string, name string, inline bool) int {
 		fail(err)
 	}
 
-	fmt.Fprintf(os.Stderr, "bodycam needs your Mac password to start Apple's eslogger. %s itself runs as you.\n", name)
+	fmt.Fprintf(os.Stderr, "bodycam needs your password for Apple's eslogger. %s runs as you.\n", name)
 	auth := exec.Command("sudo", "-v", "-p", "Password: ")
 	auth.Stdin, auth.Stdout, auth.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if auth.Run() != nil {

@@ -22,7 +22,6 @@ func newScript(t *testing.T) *script {
 	r := newRecorder(out, owner{uid: 501, gid: 20, home: "/Users/dev"}, false, nil)
 	r.reportDir = t.TempDir()
 	r.homes[501] = "/Users/dev"
-	r.resolve = func([]string) map[string]string { return nil }
 	return &script{t: t, r: r, out: out, clock: time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)}
 }
 

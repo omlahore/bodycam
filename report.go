@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -306,14 +303,9 @@ func (r *recorder) markdown(s *session) string {
 		b.WriteString("\n## Network\n\n")
 	}
 	if len(s.conns) > 0 {
-		names := r.resolve(sortedKeys(s.conns))
 		b.WriteString("Connections bodycam saw open (it checks every 2 seconds, so short ones can be missing):\n\n")
 		for _, remote := range sortedKeys(s.conns) {
-			line := remote
-			if n := names[remote]; n != "" {
-				line += " (" + n + ")"
-			}
-			fmt.Fprintf(&b, "- `%s` from %s\n", line, strings.Join(sortedKeys(s.conns[remote]), ", "))
+			fmt.Fprintf(&b, "- `%s` from %s\n", remote, strings.Join(sortedKeys(s.conns[remote]), ", "))
 		}
 	}
 	if len(s.hosts) > 0 {
@@ -377,30 +369,4 @@ func listPaths(b *strings.Builder, s *session, paths []string, created map[strin
 		}
 		fmt.Fprintf(b, "- %s\n", line)
 	}
-}
-
-func reverseNames(remotes []string) map[string]string {
-	names := map[string]string{}
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	for _, remote := range remotes {
-		host, _, err := net.SplitHostPort(remote)
-		if err != nil {
-			continue
-		}
-		wg.Add(1)
-		go func(remote, host string) {
-			defer wg.Done()
-			got, err := net.DefaultResolver.LookupAddr(ctx, host)
-			if err == nil && len(got) > 0 {
-				mu.Lock()
-				names[remote] = strings.TrimSuffix(got[0], ".")
-				mu.Unlock()
-			}
-		}(remote, host)
-	}
-	wg.Wait()
-	return names
 }
