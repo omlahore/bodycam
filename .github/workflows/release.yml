@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go test ./...
+      - name: Build
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p stage dist
+          for arch in arm64 amd64; do
+            GOOS=darwin GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$version" -o "stage/bodycam-$arch" .
+          done
+          lipo -create -output stage/bodycam stage/bodycam-arm64 stage/bodycam-amd64
+          rm stage/bodycam-arm64 stage/bodycam-amd64
+          stage/bodycam --version
+          cp LICENSE stage/
+          COPYFILE_DISABLE=1 tar -czf dist/bodycam-darwin-universal.tar.gz -C stage bodycam LICENSE
+          cd dist
+          shasum -a 256 bodycam-darwin-universal.tar.gz > bodycam-darwin-universal.tar.gz.sha256
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/bodycam-darwin-universal.tar.gz
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="## $version" '$0 == v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md

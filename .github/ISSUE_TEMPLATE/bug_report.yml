@@ -1,0 +1,41 @@
+name: Bug report
+description: Something bodycam missed, flagged wrongly or got wrong
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Which agent you ran, what it did, and what bodycam showed or missed.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: bodycam output
+      description: The lines from the terminal or the report that are wrong. Remove anything private first.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: bodycam version
+      description: The output of `bodycam --version`.
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and build
+      description: The output of `sw_vers`, for example 27.0.1 (26B50).
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - Homebrew
+        - go install
+        - Release download
+        - Built from source
+    validations:
+      required: true
