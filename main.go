@@ -30,8 +30,8 @@ func usage() {
 the files they change, the secrets they read and the addresses they connect to.
 
 Usage:
-  sudo bodycam                    watch for agents and report on each one when it exits
-  sudo bodycam --pid 4242         also record an agent that is already running
+  sudo bodycam                    record every agent you start, and report when each one exits
+  sudo bodycam --pid 4242         also record an agent that was already running
   bodycam --replay events.jsonl   make reports from a log saved with --save
 
 Agents it knows by name: %s
@@ -119,14 +119,16 @@ func main() {
 		cmd.Process.Signal(syscall.SIGTERM)
 	}()
 
-	if err := r.attachRunning(*pid); err != nil {
+	running, err := r.attachRunning(*pid)
+	if err != nil {
 		cmd.Process.Kill()
 		fail(err)
 	}
-	if !*quiet {
-		agents := strings.Join(append(append([]string{}, defaultAgents...), extra...), ", ")
-		fmt.Printf("bodycam %s is recording. Watching for %s.\nStart your agent in another tab. Press Ctrl-C to stop.\n\n", version, agents)
+	fmt.Printf("bodycam %s is recording. Start your agent in another tab, and press Ctrl-C here to stop.\n", version)
+	if len(running) > 0 {
+		fmt.Printf("Already running, so not recorded: %s. Use --pid to record one of them.\n", strings.Join(running, ", "))
 	}
+	fmt.Println()
 
 	stop := make(chan struct{})
 	go r.pollNetwork(stop)

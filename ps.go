@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,8 +17,9 @@ type psRow struct {
 	args           []string
 }
 
-// attachRunning picks up agents that were running before bodycam started, and the --pid one.
-func (r *recorder) attachRunning(want int) error {
+// attachRunning starts recording the --pid process, and returns the agents that were already
+// running but are left alone.
+func (r *recorder) attachRunning(want int) ([]string, error) {
 	rows := map[int]psRow{}
 	kids := map[int][]int{}
 	err := psEach("pid=,ppid=,uid=,comm=", 3, func(f []string, rest string) {
@@ -28,7 +30,7 @@ func (r *recorder) attachRunning(want int) error {
 		kids[ppid] = append(kids[ppid], pid)
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	psEach("pid=,args=", 1, func(f []string, rest string) {
 		pid, _ := strconv.Atoi(f[0])
@@ -39,7 +41,7 @@ func (r *recorder) attachRunning(want int) error {
 	})
 	if want > 0 {
 		if _, ok := rows[want]; !ok {
-			return fmt.Errorf("no process has pid %d", want)
+			return nil, fmt.Errorf("no process has pid %d", want)
 		}
 	}
 	agentOf := func(row psRow) string {
@@ -64,8 +66,13 @@ func (r *recorder) attachRunning(want int) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	var others []string
 	for pid, row := range rows {
 		if pid == os.Getpid() || !isRoot(pid) {
+			continue
+		}
+		if pid != want {
+			others = append(others, fmt.Sprintf("%s (pid %d)", agentOf(row), pid))
 			continue
 		}
 		name := agentOf(row)
@@ -85,7 +92,8 @@ func (r *recorder) attachRunning(want int) error {
 			queue = append(queue, kids[k]...)
 		}
 	}
-	return nil
+	sort.Strings(others)
+	return others, nil
 }
 
 func cwdOf(pid int) string {
