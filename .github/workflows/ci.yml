@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -17,3 +17,4 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build -o bodycam . && ./bodycam --version
+      - run: tools/build-app.sh

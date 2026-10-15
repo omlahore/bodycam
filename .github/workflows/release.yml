@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -31,12 +31,17 @@ jobs:
           stage/bodycam --version
           cp LICENSE stage/
           COPYFILE_DISABLE=1 tar -czf dist/bodycam-darwin-universal.tar.gz -C stage bodycam LICENSE
+          tools/build-app.sh
+          ditto -c -k --keepParent app/.build/bodycam.app dist/bodycam-app.zip
           cd dist
           shasum -a 256 bodycam-darwin-universal.tar.gz > bodycam-darwin-universal.tar.gz.sha256
+          shasum -a 256 bodycam-app.zip > bodycam-app.zip.sha256
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: dist/bodycam-darwin-universal.tar.gz
+          subject-path: |
+            dist/bodycam-darwin-universal.tar.gz
+            dist/bodycam-app.zip
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
