@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -109,6 +110,7 @@ type recorder struct {
 	reports   []string
 	wantPID   int
 	count     int
+	resolve   func([]string) map[string]string
 }
 
 func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder {
@@ -122,6 +124,7 @@ func newRecorder(out io.Writer, own owner, quiet bool, extra []string) *recorder
 		owner:     own,
 		reportDir: filepath.Join(own.home, "Library", "Logs", "bodycam"),
 		homes:     map[int]string{},
+		resolve:   reverseNames,
 	}
 	for _, a := range append(append([]string{}, defaultAgents...), extra...) {
 		r.agents[a] = true
@@ -150,6 +153,10 @@ func (r *recorder) homeOf(uid int) string {
 }
 
 func (r *recorder) handle(line []byte) {
+	if bytes.HasPrefix(line, []byte(`{"bodycam_conn"`)) {
+		r.replayConn(line)
+		return
+	}
 	var m esMessage
 	if json.Unmarshal(line, &m) != nil || len(m.Event) != 1 {
 		return
@@ -209,10 +216,10 @@ func (r *recorder) handle(line []byte) {
 			}
 			s := r.newSession(agent, pid, e.Cwd.Path, r.homeOf(m.Process.AuditToken.RUID), t, false)
 			r.procs[pid] = &proc{pid: pid, name: agent, s: s}
-			r.keep(stripEnv(line))
+			r.keep(line)
 			return
 		}
-		r.keep(stripEnv(line))
+		r.keep(line)
 		if p.s.cwd == "" && e.Cwd.Path != "" {
 			p.s.setProject(e.Cwd.Path)
 		}
@@ -263,8 +270,11 @@ func (r *recorder) handle(line []byte) {
 }
 
 func (r *recorder) keep(line []byte) {
-	if r.save != nil {
-		r.save.Write(append(append([]byte{}, line...), '\n'))
+	if r.save == nil {
+		return
+	}
+	if c := compact(line); c != nil {
+		r.save.Write(append(c, '\n'))
 	}
 }
 
@@ -321,6 +331,11 @@ func (s *session) empty() bool {
 
 func (s *session) wholeHome() bool {
 	return s.project == "" || s.project == s.home || s.project == "/"
+}
+
+// ownsPath is true for files in a project that is its own folder, even one under /tmp.
+func (s *session) ownsPath(p string) bool {
+	return !s.wholeHome() && s.inProject(p)
 }
 
 func (s *session) inProject(p string) bool {
@@ -498,7 +513,7 @@ func (r *recorder) onRead(p *proc, path string, t time.Time) {
 
 func (r *recorder) onChange(p *proc, path string, t time.Time) {
 	s := p.s
-	if path == "" || ignoredChange(path, s.home) {
+	if path == "" || ignoredChange(path, s.home) && !s.ownsPath(path) {
 		return
 	}
 	verb := "edit"
@@ -579,7 +594,7 @@ func (r *recorder) onDelete(p *proc, path string, t time.Time) {
 		fl.dead = true
 		delete(r.pending, path)
 	}
-	if ignoredChange(path, s.home) || p.name == "security" && secretLabel(path, s.home) == "your keychain" {
+	if ignoredChange(path, s.home) && !s.ownsPath(path) || p.name == "security" && secretLabel(path, s.home) == "your keychain" {
 		return
 	}
 	if _, wrote := s.changed[path]; wrote && s.newFiles[path] {
@@ -790,4 +805,16 @@ func contains(list []string, v string) bool {
 		}
 	}
 	return false
+}
+
+func (r *recorder) replayConn(line []byte) {
+	var c savedConn
+	if json.Unmarshal(line, &c) != nil || c.Conn == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if p := r.procs[c.Conn.PID]; p != nil {
+		r.addConn(p, c.Conn.Name, c.Conn.Remote, c.Conn.Time)
+	}
 }

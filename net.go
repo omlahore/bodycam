@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net"
 	"os/exec"
 	"strconv"
@@ -38,9 +39,10 @@ func (r *recorder) pollNetwork(stop <-chan struct{}) {
 			continue
 		}
 		r.mu.Lock()
+		now := time.Now()
 		for _, c := range conns {
 			if p := r.procs[c.pid]; p != nil {
-				r.addConn(p, c.name, c.remote)
+				r.addConn(p, c.name, c.remote, now)
 			}
 		}
 		r.mu.Unlock()
@@ -77,11 +79,17 @@ func parseLsof(out []byte) []conn {
 	return res
 }
 
-func (r *recorder) addConn(p *proc, name, remote string) {
+func (r *recorder) addConn(p *proc, name, remote string, t time.Time) {
 	s := p.s
 	if s.conns[remote] == nil {
 		s.conns[remote] = map[string]bool{}
-		r.emit(&feedLine{t: time.Now(), s: s, who: name, verb: "net", what: remote})
+		r.emit(&feedLine{t: t, s: s, who: name, verb: "net", what: remote})
+		if r.save != nil {
+			line, _ := json.Marshal(map[string]any{"bodycam_conn": map[string]any{
+				"time": t, "pid": p.pid, "name": name, "remote": remote,
+			}})
+			r.save.Write(append(line, '\n'))
+		}
 	}
 	s.conns[remote][name] = true
 }

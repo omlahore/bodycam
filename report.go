@@ -274,7 +274,7 @@ func (r *recorder) markdown(s *session) string {
 		b.WriteString("\n## Network\n\n")
 	}
 	if len(s.conns) > 0 {
-		names := reverseNames(sortedKeys(s.conns))
+		names := r.resolve(sortedKeys(s.conns))
 		b.WriteString("Connections bodycam saw open (it checks every 2 seconds, so short ones can be missing):\n\n")
 		for _, remote := range sortedKeys(s.conns) {
 			line := remote

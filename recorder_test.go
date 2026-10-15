@@ -22,6 +22,7 @@ func newScript(t *testing.T) *script {
 	r := newRecorder(out, owner{uid: 501, gid: 20, home: "/Users/dev"}, false, nil)
 	r.reportDir = t.TempDir()
 	r.homes[501] = "/Users/dev"
+	r.resolve = func([]string) map[string]string { return nil }
 	return &script{t: t, r: r, out: out, clock: time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)}
 }
 
@@ -214,5 +215,46 @@ func TestOwnCredentialsAreNotFlagged(t *testing.T) {
 	}
 	if strings.Contains(report, "Claude Code-credentials` (") || strings.Contains(report, "gh:github.com` (") {
 		t.Errorf("flagged a tool reading its own login:\n%s", report)
+	}
+}
+
+func TestProjectUnderTmp(t *testing.T) {
+	s := newScript(t)
+	s.exec(500, "/private/tmp/scratch-app", "opencode")
+	s.write(500, "/private/tmp/scratch-app/main.go")
+	s.write(500, "/private/tmp/other.txt")
+	s.send(500, "exit", map[string]any{"stat": 0})
+	feed := s.out.String()
+	if !strings.Contains(feed, "main.go") {
+		t.Errorf("an edit in a project under /tmp is missing:\n%s", feed)
+	}
+	if strings.Contains(feed, "other.txt") {
+		t.Errorf("a temp file outside the project was shown:\n%s", feed)
+	}
+}
+
+func TestSaveAndReplay(t *testing.T) {
+	s := newScript(t)
+	var saved bytes.Buffer
+	s.r.save = &saved
+	s.exec(600, "/Users/dev/shop", "claude")
+	s.fork(600, 601)
+	s.exec(601, "/Users/dev/shop", "cat", "/Users/dev/.aws/credentials")
+	s.read(601, "/Users/dev/.aws/credentials")
+	s.r.addConn(s.r.procs[600], "claude", "160.79.104.10:443", s.clock)
+	s.write(600, "/Users/dev/shop/README.md")
+	s.send(600, "exit", map[string]any{"stat": 0})
+
+	replay := newScript(t)
+	replay.r.read(bytes.NewReader(saved.Bytes()))
+	replay.r.finishAll("")
+	if len(replay.r.reports) != 1 {
+		t.Fatalf("replay made %d reports, want 1", len(replay.r.reports))
+	}
+	md, _ := os.ReadFile(replay.r.reports[0])
+	for _, want := range []string{"read AWS credentials", "`README.md`", "160.79.104.10:443", "`cat ~/.aws/credentials`"} {
+		if !strings.Contains(string(md), want) {
+			t.Errorf("replayed report is missing %q:\n%s", want, md)
+		}
 	}
 }

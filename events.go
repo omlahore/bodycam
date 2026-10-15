@@ -133,21 +133,57 @@ func fileURLPath(s string) string {
 	return s
 }
 
-// stripEnv drops exec environments from saved logs, since that is where API keys live.
-func stripEnv(line []byte) []byte {
+// Fields bodycam never reads. Saved logs drop them, exec environments with their API keys included.
+var unusedFields = map[string]bool{
+	"env": true, "cdhash": true, "codesigning_flags": true, "signing_id": true, "team_id": true,
+	"parent_audit_token": true, "responsible_audit_token": true, "entitlements": true, "fds": true,
+	"tty": true, "start_time": true, "is_platform_binary": true, "is_es_client": true, "session_id": true,
+	"group_id": true, "cs_validation_category": true, "thread": true, "mach_time": true, "action": true,
+	"action_type": true, "seq_num": true, "dyld_exec_path": true, "last_fd": true, "image_cputype": true,
+	"image_cpusubtype": true, "path_truncated": true, "schema_version": true, "version": true,
+}
+
+func compact(line []byte) []byte {
 	var m map[string]any
 	if json.Unmarshal(line, &m) != nil {
-		return line
+		return nil
 	}
-	ev, _ := m["event"].(map[string]any)
-	ex, _ := ev["exec"].(map[string]any)
-	if ex == nil {
-		return line
-	}
-	delete(ex, "env")
+	prune(m)
 	out, err := json.Marshal(m)
 	if err != nil {
-		return line
+		return nil
 	}
 	return out
+}
+
+func prune(v any) {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, child := range x {
+			switch {
+			case k == "stat":
+				if st, ok := child.(map[string]any); ok {
+					x[k] = map[string]any{"st_mode": st["st_mode"]}
+				}
+			case unusedFields[k]:
+				delete(x, k)
+			default:
+				prune(child)
+			}
+		}
+	case []any:
+		for _, child := range x {
+			prune(child)
+		}
+	}
+}
+
+// savedConn is how --save records a sampled network connection, since eslogger has no event for it.
+type savedConn struct {
+	Conn *struct {
+		Time   time.Time `json:"time"`
+		PID    int       `json:"pid"`
+		Name   string    `json:"name"`
+		Remote string    `json:"remote"`
+	} `json:"bodycam_conn"`
 }
