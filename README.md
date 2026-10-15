@@ -72,6 +72,8 @@ In this mode it recognizes Claude Code, Codex, Gemini CLI, Cursor CLI, Aider, Op
 
 The app does the same recording from your menu bar, for every agent you start, in a terminal or anywhere else. Its light turns red while an agent runs, you get a notification when one reads a secret or changes your setup, and each run gets a window with its timeline.
 
+There's a [50-second tour of the app](https://omlahore.github.io/bodycam/#app) on the website.
+
 Download `bodycam-app.zip` from the [latest release](https://github.com/omlahore/bodycam/releases/latest), unzip it and drag bodycam to Applications. The app isn't notarized yet, so the first time you open it macOS says it can't verify it: open System Settings > Privacy & Security, scroll down and click Open Anyway. When you start recording, the app asks you to turn it on in Full Disk Access, which Apple requires for any app that reads Endpoint Security events.
 
 <p align="center">
