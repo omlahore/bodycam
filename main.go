@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var version = "dev"
@@ -57,6 +59,10 @@ func main() {
 		quiet   = flag.Bool("quiet", false, "skip the live feed and only print each agent's summary")
 		showVer = flag.Bool("version", false, "print the version")
 		demo    = flag.Bool("demo", false, "record a harmless pretend agent that does risky-looking things")
+		events  = flag.String("events", "", "also append machine-readable JSON lines to `file` (used by the menu bar app)")
+		ownerID = flag.Int("owner", -1, "with sudo bodycam, the `uid` whose home gets the reports (default: the user who ran sudo)")
+		runFile = flag.String("run-file", "", "with sudo bodycam, stop when this `file` is deleted")
+		parent  = flag.Int("parent-pid", 0, "with sudo bodycam, stop when the process with this `id` exits")
 		extra   names
 	)
 	flag.Var(&extra, "agent", "also watch for processes with this `name` (can repeat)")
@@ -73,8 +79,16 @@ func main() {
 		return
 	}
 
-	own := currentOwner()
+	own := currentOwner(*ownerID)
 	r := newRecorder(os.Stdout, own, *quiet, extra)
+	if *events != "" {
+		f, err := openEvents(*events, own)
+		if err != nil {
+			fail(err)
+		}
+		defer f.Close()
+		r.eventsOut = f
+	}
 
 	if *save != "" {
 		f, err := os.OpenFile(*save, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
@@ -122,11 +136,12 @@ func main() {
 	}
 
 	r.live = true
-	events, err := supportedEvents()
+	esEvents, err := supportedEvents()
 	if err != nil {
+		r.writeStatus("error", map[string]any{"error": err.Error(), "hint": "eslogger_missing"})
 		fail(err)
 	}
-	cmd := exec.Command("/usr/bin/eslogger", events...)
+	cmd := exec.Command("/usr/bin/eslogger", esEvents...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -144,6 +159,7 @@ func main() {
 		<-sig
 		cmd.Process.Signal(syscall.SIGTERM)
 	}()
+	go stopWhen(*runFile, *parent, func() { cmd.Process.Signal(syscall.SIGTERM) })
 
 	running, err := r.attachRunning(*pid)
 	if err != nil {
@@ -162,10 +178,16 @@ func main() {
 	close(stop)
 	werr := cmd.Wait()
 	if r.events == 0 && werr != nil {
+		hint := ""
+		if strings.Contains(stderr.String(), "NOT_PERMITTED") {
+			hint = "full_disk_access"
+		}
+		r.writeStatus("error", map[string]any{"error": strings.TrimSpace(stderr.String()), "hint": hint})
 		explain(stderr.String())
 		os.Exit(1)
 	}
 	r.finishAll("bodycam stopped before the agent exited.")
+	r.writeStatus("stopped", nil)
 }
 
 func supportedEvents() ([]string, error) {
@@ -197,9 +219,13 @@ Full Disk Access, quit and reopen the terminal, then run bodycam again.
 	fmt.Fprintf(os.Stderr, "eslogger stopped: %s\n", strings.TrimSpace(stderr))
 }
 
-func currentOwner() owner {
+func currentOwner(uid int) owner {
 	if os.Geteuid() == 0 {
-		if u, err := user.LookupId(os.Getenv("SUDO_UID")); err == nil {
+		id := os.Getenv("SUDO_UID")
+		if uid >= 0 {
+			id = strconv.Itoa(uid)
+		}
+		if u, err := user.LookupId(id); err == nil {
 			uid, _ := strconv.Atoi(u.Uid)
 			gid, _ := strconv.Atoi(u.Gid)
 			return owner{uid: uid, gid: gid, home: u.HomeDir}
@@ -231,4 +257,23 @@ func commandName(args []string) string {
 		return strings.TrimSuffix(filepath.Base(args[1]), filepath.Ext(args[1]))
 	}
 	return name
+}
+
+// stopWhen calls stop once runFile is deleted or the parent process exits, polling twice a second.
+func stopWhen(runFile string, parent int, stop func()) {
+	if runFile == "" && parent <= 0 {
+		return
+	}
+	for range time.Tick(500 * time.Millisecond) {
+		if runFile != "" {
+			if _, err := os.Stat(runFile); errors.Is(err, os.ErrNotExist) {
+				stop()
+				return
+			}
+		}
+		if parent > 0 && syscall.Kill(parent, 0) == syscall.ESRCH {
+			stop()
+			return
+		}
+	}
 }

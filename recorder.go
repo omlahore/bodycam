@@ -36,21 +36,22 @@ type command struct {
 }
 
 type session struct {
-	n       int
-	agent   string
-	root    int
-	cwd     string
-	project string
-	home    string
-	start   time.Time
-	end     time.Time
-	late    bool
-	unnamed bool
-	started *feedLine
-	dropped int
-	note    string
-	running map[int]string
-	procs   int
+	n         int
+	agent     string
+	root      int
+	cwd       string
+	project   string
+	home      string
+	start     time.Time
+	end       time.Time
+	late      bool
+	unnamed   bool
+	announced bool
+	started   *feedLine
+	dropped   int
+	note      string
+	running   map[int]string
+	procs     int
 
 	findings []*finding
 	findKey  map[string]*finding
@@ -113,6 +114,7 @@ type recorder struct {
 	width     int
 	live      bool
 	feed      io.Writer
+	eventsOut io.Writer
 	feedColor bool
 	wrapPPID  int
 	wrapName  string
@@ -172,6 +174,9 @@ func (r *recorder) handle(line []byte) {
 	defer r.mu.Unlock()
 
 	r.events++
+	if r.events == 1 && r.live {
+		r.writeStatus("recording", map[string]any{"version": version, "pid": os.Getpid()})
+	}
 	if r.live && r.lastSeq != 0 && m.Seq > r.lastSeq+1 {
 		for _, s := range r.sessions {
 			s.dropped += int(m.Seq - r.lastSeq - 1)
@@ -707,7 +712,7 @@ func (r *recorder) emitLimited(fl *feedLine, group string) {
 }
 
 func (r *recorder) emit(fl *feedLine) {
-	if r.quiet {
+	if r.quiet && r.eventsOut == nil {
 		return
 	}
 	if st := fl.s.started; st != nil {
@@ -769,7 +774,10 @@ func (r *recorder) finish(s *session, t time.Time, why string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bodycam: couldn't save the report: %v\n", err)
 	}
-	r.printSummary(s, path)
+	r.writeEnd(s, path)
+	if !r.quiet || r.eventsOut == nil {
+		r.printSummary(s, path)
+	}
 }
 
 func (r *recorder) finishAll(why string) {

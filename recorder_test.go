@@ -289,3 +289,45 @@ func TestWrappedCommand(t *testing.T) {
 		t.Errorf("report is missing the key read:\n%s", md)
 	}
 }
+
+func TestEventStream(t *testing.T) {
+	s := newScript(t)
+	var out bytes.Buffer
+	s.r.eventsOut = &out
+	s.r.quiet = true
+	s.exec(700, "/Users/dev/shop", "claude")
+	s.fork(700, 701)
+	s.exec(701, "/Users/dev/shop", "cat", ".env")
+	s.read(701, "/Users/dev/shop/.env")
+	s.send(701, "exit", map[string]any{"stat": 0})
+	s.write(700, "/Users/dev/shop/app.js")
+	s.send(700, "exit", map[string]any{"stat": 0})
+
+	var types []string
+	var flagged, end map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		var v map[string]any
+		if err := json.Unmarshal([]byte(line), &v); err != nil {
+			t.Fatalf("bad JSON line %q: %v", line, err)
+		}
+		types = append(types, v["type"].(string))
+		if v["verb"] == "read" {
+			flagged = v
+		}
+		if v["type"] == "end" {
+			end = v
+		}
+	}
+	if types[0] != "start" || types[len(types)-1] != "end" {
+		t.Fatalf("want start first and end last, got %v", types)
+	}
+	if flagged == nil || flagged["flag"] != true || flagged["note"] != "an .env file" {
+		t.Errorf("the .env read isn't a flagged event: %v", flagged)
+	}
+	if end["changed"] != float64(1) || end["commands"] != float64(1) || len(end["findings"].([]any)) != 1 {
+		t.Errorf("end line has the wrong counts: %v", end)
+	}
+	if !strings.HasSuffix(end["report"].(string), ".md") {
+		t.Errorf("end line has no report path: %v", end)
+	}
+}

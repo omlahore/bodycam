@@ -370,6 +370,9 @@ func agentName(agents map[string]bool, exe string, args []string, script string)
 		if agents[c] {
 			return c
 		}
+		if bare := strings.TrimSuffix(c, filepath.Ext(c)); bare != c && agents[bare] {
+			return bare
+		}
 	}
 	if agents["claude"] && strings.Contains(exe, "/claude/versions/") {
 		return "claude"

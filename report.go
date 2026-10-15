@@ -71,6 +71,10 @@ var verbColor = map[string]string{
 }
 
 func (r *recorder) print(fl *feedLine) {
+	r.writeFeed(fl)
+	if r.quiet {
+		return
+	}
 	c := r.feedColor
 	tag := ""
 	if len(r.sessions) > 1 {
