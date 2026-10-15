@@ -193,6 +193,8 @@ a:hover { text-decoration-thickness: 2px; }
 .aside { margin-top: 28px; max-width: 70ch; font-size: 17px; color: var(--muted); }
 .aside strong { color: var(--ink); }
 
+.shot { display: block; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 18px 50px rgba(18,18,18,.18); }
+.shot.wide { margin-top: 44px; width: 100%; }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 44px; }
 .prose p + p { margin-top: 18px; }
 .prose p { max-width: 58ch; }
@@ -260,6 +262,7 @@ a:hover { text-decoration-thickness: 2px; }
     <div class="bar">
       <span class="bar-note">Open source, for macOS 13 and later</span>
       <nav aria-label="Page">
+        <a class="optional" href="#app">App</a>
         <a class="optional" href="#flags">What it flags</a>
         <a class="optional" href="#how">How it works</a>
         <a class="optional" href="#limits">Limits</a>
@@ -321,6 +324,23 @@ a:hover { text-decoration-thickness: 2px; }
         </div>
         <figcaption><strong>A real recording.</strong> First a harmless pretend agent does a few risky-looking things and bodycam flags each one. Then Claude Code fixes a failing test in a project that keeps its tax rate in <code>.env</code>, and bodycam shows it running the tests, reading <code>.env</code> and editing <code>src/config.js</code>.</figcaption>
       </figure>
+    </div>
+  </section>
+
+  <section class="section" id="app" aria-labelledby="app-title">
+    <div class="wrap">
+      <h2 class="h2" id="app-title">In your menu bar</h2>
+      <p class="lede">The app records every agent you start, in a terminal or anywhere else. Its light turns red while one runs, and you get a notification when an agent reads a secret or changes your setup.</p>
+      <div class="split">
+        <img class="shot" src="app-popover.png" width="380" height="377" alt="The bodycam menu bar app with recent sessions and their flags" loading="lazy">
+        <div class="prose">
+          <p>Each run gets a window with its flags and a timeline you can filter by flags, commands, files and network.</p>
+          <p><a class="button" href="https://github.com/omlahore/bodycam/releases/latest/download/bodycam-app.zip">Download the app</a></p>
+          <p>Or with Homebrew: <code>brew install --cask omlahore/tap/bodycam-app</code></p>
+          <p>The app isn't notarized yet, so the first time you open it, go to System Settings &gt; Privacy &amp; Security and click Open Anyway. When you start recording it asks you to turn it on in Full Disk Access, which Apple requires for any app that reads Endpoint Security events.</p>
+        </div>
+      </div>
+      <img class="shot wide" src="app-session.png" width="1200" height="1151" alt="A recorded run with eight things to look at and its timeline" loading="lazy">
     </div>
   </section>
 
