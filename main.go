@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"os/user"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -54,6 +55,11 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(info.Main.Version, "v") {
+			version = strings.TrimPrefix(info.Main.Version, "v")
+		}
+	}
 	if *showVer {
 		fmt.Println("bodycam", version)
 		return
