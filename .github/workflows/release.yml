@@ -13,10 +13,11 @@ jobs:
   release:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
+          cache: false
       - run: go test ./...
       - name: Build
         run: |
@@ -33,7 +34,7 @@ jobs:
           cd dist
           shasum -a 256 bodycam-darwin-universal.tar.gz > bodycam-darwin-universal.tar.gz.sha256
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/bodycam-darwin-universal.tar.gz
       - name: Publish release
